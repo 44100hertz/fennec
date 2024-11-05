@@ -986,9 +986,6 @@ var unicode_whitespaces = [
 ].join("");
 var left_trim_regex = new RegExp(`^([${unicode_whitespaces}]*)`, "g");
 var right_trim_regex = new RegExp(`([${unicode_whitespaces}]*)$`, "g");
-function console_log(term) {
-  console.log(term);
-}
 function new_map() {
   return Dict.new();
 }
@@ -2236,11 +2233,6 @@ function start2(app, selector, flags) {
   );
 }
 
-// build/dev/javascript/gleam_stdlib/gleam/io.mjs
-function println(string3) {
-  return console_log(string3);
-}
-
 // build/dev/javascript/fennec/syntax.mjs
 var Num = class extends CustomType {
   constructor(x0) {
@@ -2418,7 +2410,6 @@ function init2(_) {
 function update(model, msg) {
   {
     let select_path = msg[0];
-    println("select");
     return model.withFields({ select_path });
   }
 }

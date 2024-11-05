@@ -1,4 +1,3 @@
-import gleam/io
 import lisp
 import syntax.{Ident, Item, Num, Parens, Square}
 
@@ -17,7 +16,7 @@ pub fn init(_flags) {
       Square([Item(Ident("a"))]),
       Parens([
         syntax.Item(Ident("*")),
-        syntax.Item(Num(8.0)),
+        syntax.Item(Num("8.0")),
         syntax.Item(Ident("a")),
       ]),
     ])
@@ -28,9 +27,6 @@ pub fn init(_flags) {
 
 pub fn update(model: Model, msg: Msg) {
   case msg {
-    SelectPath(select_path) -> {
-      io.println("select")
-      Model(..model, select_path:)
-    }
+    SelectPath(select_path) -> Model(..model, select_path:)
   }
 }
