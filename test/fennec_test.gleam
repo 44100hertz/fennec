@@ -1,12 +1,20 @@
 import gleeunit
 import gleeunit/should
+import syntax
 
 pub fn main() {
   gleeunit.main()
 }
 
 // gleeunit test functions end in `_test`
-pub fn hello_world_test() {
-  1
-  |> should.equal(1)
+pub fn lexer_test() {
+  "(x 1 2)"
+  |> syntax.lex
+  |> should.equal([
+    syntax.LParen(syntax.Round),
+    syntax.TIdent("x"),
+    syntax.TNum("1"),
+    syntax.TNum("2"),
+    syntax.RParen(syntax.Round),
+  ])
 }
