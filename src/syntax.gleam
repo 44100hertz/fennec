@@ -9,29 +9,33 @@ pub type Item {
   Ident(String)
 }
 
+pub type Paren {
+  Round
+  Square
+  Curly
+}
+
 pub type Node {
-  Parens(List(Node))
-  Square(List(Node))
+  Parens(paren: Paren, content: List(Node))
   Item(Item)
 }
 
 pub type Token {
   White(newline: Bool)
-  LParen
-  RParen
-  LSquare
-  RSquare
+  LParen(Paren)
+  RParen(Paren)
   TIdent(String)
   TNum(String)
+  EOF
 }
 
 pub fn lex(str) {
   [
     #("\\s+", fn(str) { White(newline: string.contains(str, "\n")) }),
-    #("\\(", fn(_str) { LParen }),
-    #("\\)", fn(_str) { RParen }),
-    #("\\[", fn(_str) { LSquare }),
-    #("\\]", fn(_str) { RSquare }),
+    #("\\(", fn(_str) { LParen(Round) }),
+    #("\\)", fn(_str) { RParen(Round) }),
+    #("\\[", fn(_str) { LParen(Square) }),
+    #("\\]", fn(_str) { RParen(Square) }),
     #("\\D\\S+", fn(str) { TIdent(str) }),
     #("\\d*.?\\d", fn(str) { TNum(str) }),
   ]
@@ -42,11 +46,11 @@ pub fn lex(str) {
   |> do_lex(str)
 }
 
-pub fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
+fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
   list.find_map(patterns, fn(token) {
     case regex.scan(token.0, str) {
       [] -> Error(Nil)
-      [regex.Match(_, [Some(tok)])] -> Ok([token.1(tok)])
+      [regex.Match(_, [Some(tok)])] -> Ok([token.1(tok), EOF])
       [regex.Match(_, [Some(tok), Some(rest)])] ->
         Ok([token.1(tok), ..do_lex(patterns, rest)])
       _ -> panic
@@ -57,8 +61,9 @@ pub fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
 
 pub fn to_string(syntax) {
   case syntax {
-    Parens(content) -> "(" <> list_to_string(content) <> ")"
-    Square(content) -> "[" <> list_to_string(content) <> "]"
+    Parens(Round, content) -> "(" <> list_to_string(content) <> ")"
+    Parens(Square, content) -> "[" <> list_to_string(content) <> "]"
+    Parens(Curly, content) -> "{" <> list_to_string(content) <> "}"
     Item(item) -> item_to_string(item)
   }
 }

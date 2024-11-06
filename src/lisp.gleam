@@ -1,6 +1,6 @@
 import gleam/list.{map}
 import gleam/option.{type Option, None, Some}
-import syntax.{Ident, Parens, Square}
+import syntax.{Curly, Ident, Parens, Round, Square}
 
 pub type Node {
   Call(List(Node))
@@ -18,24 +18,28 @@ pub type AListItem {
 pub fn parse(syntax) {
   case syntax {
     // parse functions
-    Parens([
-      syntax.Item(Ident("fn")),
-      syntax.Item(Ident(name)),
-      Square(alist),
-      ..body
-    ]) -> Func(Some(name), parse_alist(alist), parse_list(body))
+    Parens(
+      Round,
+      [
+        syntax.Item(Ident("fn")),
+        syntax.Item(Ident(name)),
+        Parens(Square, alist),
+        ..body
+      ],
+    ) -> Func(Some(name), parse_alist(alist), parse_list(body))
 
-    Parens([syntax.Item(Ident("fn")), Square(alist), ..body]) ->
+    Parens(Round, [syntax.Item(Ident("fn")), Parens(Square, alist), ..body]) ->
       Func(None, parse_alist(alist), parse_list(body))
 
     // Correct malformed functions by adding an empty arg list
-    Parens([syntax.Item(Ident("fn")), syntax.Item(Ident(name)), ..rest]) ->
+    Parens(Round, [syntax.Item(Ident("fn")), syntax.Item(Ident(name)), ..rest]) ->
       Func(Some(name), [], parse_list(rest))
-    Parens([syntax.Item(Ident("fn")), ..rest]) ->
+    Parens(Round, [syntax.Item(Ident("fn")), ..rest]) ->
       Func(None, [], parse_list(rest))
 
-    Parens(items) -> Call(parse_list(items))
-    Square(items) -> Array(parse_list(items))
+    Parens(Round, items) -> Call(parse_list(items))
+    Parens(Square, items) -> Array(parse_list(items))
+    Parens(Curly, items) -> todo
     syntax.Item(it) -> Item(it)
   }
 }
@@ -55,10 +59,11 @@ pub fn parse_list(syntax) {
 
 pub fn unparse(structure) {
   case structure {
-    Call(content) -> Parens(unparse_list(content))
-    Array(content) -> Square(unparse_list(content))
+    Call(content) -> Parens(Round, unparse_list(content))
+    Array(content) -> Parens(Square, unparse_list(content))
     Func(name, alist, body) ->
       Parens(
+        Round,
         list.flatten([
           [syntax.Item(Ident("fn"))],
           case name {
@@ -66,7 +71,8 @@ pub fn unparse(structure) {
             None -> []
           },
           [
-            Square(
+            Parens(
+              Square,
               map(alist, fn(arg) {
                 case arg {
                   ALArg(arg) -> syntax.Item(Ident(arg))
