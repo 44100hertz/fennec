@@ -8,15 +8,17 @@ pub fn main() {
 
 // gleeunit test functions end in `_test`
 pub fn lexer_test() {
-  "(xavier123 some-thing 1 2. .3 4.0)"
+  "(xavier123 some-thing 1 [2. .3] 4.0)"
   |> syntax.lex
   |> should.equal([
     syntax.LParen(syntax.Round),
     syntax.TItem(syntax.Ident("xavier123")),
     syntax.TItem(syntax.Ident("some-thing")),
     syntax.TItem(syntax.Num("1")),
+    syntax.LParen(syntax.Square),
     syntax.TItem(syntax.Num("2.")),
     syntax.TItem(syntax.Num(".3")),
+    syntax.RParen(syntax.Square),
     syntax.TItem(syntax.Num("4.0")),
     syntax.RParen(syntax.Round),
     syntax.EOF
