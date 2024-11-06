@@ -72,8 +72,9 @@ pub fn do_parse(terminator: Token, tokens: List(Token)) -> #(List(Node), List(To
       #([Item(it), ..result], rest)
     }
     [LParen(paren), ..rest] -> {
-      let #(result, rest) = do_parse(RParen(paren), rest)
-      #([Parens(paren, result)], rest)
+      let #(lresult, lrest) = do_parse(RParen(paren), rest)
+      let #(rresult, rrest) = do_parse(terminator, lrest)
+      #([Parens(paren, lresult), ..rresult], rrest)
     }
     [other, ..rest] if other == terminator -> #([], rest)
     [] -> #([], [])
