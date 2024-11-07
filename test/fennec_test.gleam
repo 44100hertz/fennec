@@ -1,6 +1,6 @@
 import gleeunit
 import gleeunit/should
-import syntax
+import syntax.{Curly, LParen, Node, RParen, Round, Square}
 
 pub fn main() {
   gleeunit.main()
@@ -10,17 +10,18 @@ pub fn main() {
 pub fn lexer_test() {
   "(xavier123 some-thing 1 [2. .3] 4.0)"
   |> syntax.lex
+  |> fn(tok) { tok.body }
   |> should.equal([
-    syntax.LParen(syntax.Round),
-    syntax.TItem(syntax.Ident("xavier123")),
-    syntax.TItem(syntax.Ident("some-thing")),
-    syntax.TItem(syntax.Num("1")),
-    syntax.LParen(syntax.Square),
-    syntax.TItem(syntax.Num("2.")),
-    syntax.TItem(syntax.Num(".3")),
-    syntax.RParen(syntax.Square),
-    syntax.TItem(syntax.Num("4.0")),
-    syntax.RParen(syntax.Round),
+    LParen(Round),
+    TItem(Ident("xavier123")),
+    TItem(Ident("some-thing")),
+    TItem(Num("1")),
+    LParen(Square),
+    TItem(Num("2.")),
+    TItem(Num(".3")),
+    RParen(Square),
+    TItem(Num("4.0")),
+    RParen(Round),
   ])
 }
 
@@ -28,16 +29,9 @@ pub fn parser_test() {
   "(* x 4) (* x 4)"
   |> syntax.lex
   |> syntax.parse
+  |> fn(node) { node.body }
   |> should.equal([
-    syntax.Parens(syntax.Round, [
-      syntax.Item(syntax.Ident("*")),
-      syntax.Item(syntax.Ident("x")),
-      syntax.Item(syntax.Num("4")),
-    ]),
-    syntax.Parens(syntax.Round, [
-      syntax.Item(syntax.Ident("*")),
-      syntax.Item(syntax.Ident("x")),
-      syntax.Item(syntax.Num("4")),
-    ]),
+    Parens(Round, [Item(Ident("*")), Item(Ident("x")), Item(Num("4"))]),
+    Parens(Round, [Item(Ident("*")), Item(Ident("x")), Item(Num("4"))]),
   ])
 }
