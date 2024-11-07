@@ -64,8 +64,6 @@ pub fn parse(tokens) {
 }
 
 pub fn do_parse(terminator: Token, tokens: List(Token)) -> #(List(Node), List(Token)) {
-  io.debug(terminator)
-  io.debug(tokens)
   case tokens {
     [TItem(it), ..rest] -> {
       let #(result, rest) = do_parse(terminator, rest)
