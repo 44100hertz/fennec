@@ -6,7 +6,7 @@ import lustre/element
 import lustre/element/html
 import lustre/event.{on}
 
-import lisp.{ALArg, ALError, Array, Call, Func}
+import lisp.{ALArg, ALError, Array, Call, Func, Root}
 import model.{type Model, SelectPath}
 import syntax.{Item}
 
@@ -43,7 +43,8 @@ pub fn render_content(expr: lisp.Node, path: List(Int), model: Model) {
         Ok(SelectPath(path))
       }),
     ],
-    case expr {
+    case expr.body {
+      Root(nodes) -> render_list(nodes, path, model)
       Call(nodes) ->
         list.flatten([
           [element.text("(")],
