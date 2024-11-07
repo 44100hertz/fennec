@@ -65,16 +65,16 @@ pub fn parse(tokens) {
 
 pub fn do_parse(terminator: Token, tokens: List(Token)) -> #(List(Node), List(Token)) {
   case tokens {
-    [TItem(it), ..rest] -> {
-      let #(result, rest) = do_parse(terminator, rest)
-      #([Item(it), ..result], rest)
+    [TItem(item), ..tokens] -> {
+      let #(nodes, tokens) = do_parse(terminator, tokens)
+      #([Item(item), ..nodes], tokens)
     }
-    [LParen(paren), ..rest] -> {
-      let #(lresult, lrest) = do_parse(RParen(paren), rest)
-      let #(rresult, rrest) = do_parse(terminator, lrest)
-      #([Parens(paren, lresult), ..rresult], rrest)
+    [LParen(paren), ..tokens] -> {
+      let #(inside, tokens) = do_parse(RParen(paren), tokens)
+      let #(outside, tokens) = do_parse(terminator, tokens)
+      #([Parens(paren, inside), ..outside], tokens)
     }
-    [other, ..rest] if other == terminator -> #([], rest)
+    [other, ..tokens] if other == terminator -> #([], tokens)
     [] -> #([], [])
     _ -> panic // TODO: make it error correctly on unmatched parens
   }
