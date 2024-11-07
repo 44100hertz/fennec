@@ -3,7 +3,6 @@ import gleam/option.{Some}
 import gleam/regex
 import gleam/result
 import gleam/string
-import gleam/io
 
 pub type Item {
   Num(String)
@@ -47,8 +46,8 @@ pub fn lex(str) {
 
 fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
   list.find_map(patterns, fn(token) {
-    let #(pat, tokfn) = token
-    case regex.scan(token.0, str) {
+    let #(pattern, tokfn) = token
+    case regex.scan(pattern, str) {
       [] -> Error(Nil)
       [regex.Match(_, [Some(tok)])] -> Ok([tokfn(tok), EOF])
       [regex.Match(_, [Some(tok), Some(rest)])] ->
@@ -60,23 +59,28 @@ fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
 }
 
 pub fn parse(tokens) {
-  do_parse(tokens, EOF).0
+  do_parse(tokens, EOF).nodes
 }
 
-pub fn do_parse(tokens: List(Token), terminator: Token) -> #(List(Node), List(Token)) {
+type ParseResult {
+  ParseResult(nodes: List(Node), remaining_tokens: List(Token))
+}
+
+fn do_parse(tokens: List(Token), terminator: Token) -> ParseResult {
   case tokens {
     [TItem(item), ..tokens] -> {
-      let #(nodes, tokens) = do_parse(tokens, terminator)
-      #([Item(item), ..nodes], tokens)
+      let ParseResult(nodes, tokens) = do_parse(tokens, terminator)
+      ParseResult([Item(item), ..nodes], tokens)
     }
     [LParen(paren), ..tokens] -> {
-      let #(inside, tokens) = do_parse(tokens, RParen(paren))
-      let #(outside, tokens) = do_parse(tokens, terminator)
-      #([Parens(paren, inside), ..outside], tokens)
+      let ParseResult(inside, tokens) = do_parse(tokens, RParen(paren))
+      let ParseResult(outside, tokens) = do_parse(tokens, terminator)
+      ParseResult([Parens(paren, inside), ..outside], tokens)
     }
-    [other, ..tokens] if other == terminator -> #([], tokens)
-    [] -> #([], [])
-    _ -> panic // TODO: make it error correctly on unmatched parens
+    [other, ..tokens] if other == terminator -> ParseResult([], tokens)
+    [] -> ParseResult([], [])
+    _ -> panic
+    // TODO: make it error correctly on unmatched parens
   }
 }
 
