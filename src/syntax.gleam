@@ -60,18 +60,18 @@ fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
 }
 
 pub fn parse(tokens) {
-  do_parse(EOF, tokens).0
+  do_parse(tokens, EOF).0
 }
 
-pub fn do_parse(terminator: Token, tokens: List(Token)) -> #(List(Node), List(Token)) {
+pub fn do_parse(tokens: List(Token), terminator: Token) -> #(List(Node), List(Token)) {
   case tokens {
     [TItem(item), ..tokens] -> {
-      let #(nodes, tokens) = do_parse(terminator, tokens)
+      let #(nodes, tokens) = do_parse(tokens, terminator)
       #([Item(item), ..nodes], tokens)
     }
     [LParen(paren), ..tokens] -> {
-      let #(inside, tokens) = do_parse(RParen(paren), tokens)
-      let #(outside, tokens) = do_parse(terminator, tokens)
+      let #(inside, tokens) = do_parse(tokens, RParen(paren))
+      let #(outside, tokens) = do_parse(tokens, terminator)
       #([Parens(paren, inside), ..outside], tokens)
     }
     [other, ..tokens] if other == terminator -> #([], tokens)
