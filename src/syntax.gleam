@@ -60,22 +60,21 @@ fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
 }
 
 pub fn parse(tokens) {
-  do_parse(EOF, tokens).0
+  do_parse(tokens, EOF).0
 }
 
-pub fn do_parse(terminator: Token, tokens: List(Token)) -> #(List(Node), List(Token)) {
-  io.debug(terminator)
-  io.debug(tokens)
+pub fn do_parse(tokens: List(Token), terminator: Token) -> #(List(Node), List(Token)) {
   case tokens {
-    [TItem(it), ..rest] -> {
-      let #(result, rest) = do_parse(terminator, rest)
-      #([Item(it), ..result], rest)
+    [TItem(item), ..tokens] -> {
+      let #(nodes, tokens) = do_parse(tokens, terminator)
+      #([Item(item), ..nodes], tokens)
     }
-    [LParen(paren), ..rest] -> {
-      let #(result, rest) = do_parse(RParen(paren), rest)
-      #([Parens(paren, result)], rest)
+    [LParen(paren), ..tokens] -> {
+      let #(inside, tokens) = do_parse(tokens, RParen(paren))
+      let #(outside, tokens) = do_parse(tokens, terminator)
+      #([Parens(paren, inside), ..outside], tokens)
     }
-    [other, ..rest] if other == terminator -> #([], rest)
+    [other, ..tokens] if other == terminator -> #([], tokens)
     [] -> #([], [])
     _ -> panic // TODO: make it error correctly on unmatched parens
   }
