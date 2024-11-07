@@ -21,7 +21,6 @@ pub fn lexer_test() {
     syntax.RParen(syntax.Square),
     syntax.TItem(syntax.Num("4.0")),
     syntax.RParen(syntax.Round),
-    syntax.EOF
   ])
 }
 
@@ -39,6 +38,6 @@ pub fn parser_test() {
       syntax.Item(syntax.Ident("*")),
       syntax.Item(syntax.Ident("x")),
       syntax.Item(syntax.Num("4")),
-    ])
+    ]),
   ])
 }

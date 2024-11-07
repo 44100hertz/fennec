@@ -1,5 +1,5 @@
 import gleam/list.{intersperse, map}
-import gleam/option.{Some}
+import gleam/option.{type Option, None, Some}
 import gleam/regex
 import gleam/result
 import gleam/string
@@ -24,7 +24,6 @@ pub type Token {
   LParen(Paren)
   RParen(Paren)
   TItem(Item)
-  EOF
 }
 
 pub fn lex(str) {
@@ -49,7 +48,7 @@ fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
     let #(pattern, tokfn) = token
     case regex.scan(pattern, str) {
       [] -> Error(Nil)
-      [regex.Match(_, [Some(tok)])] -> Ok([tokfn(tok), EOF])
+      [regex.Match(_, [Some(tok)])] -> Ok([tokfn(tok)])
       [regex.Match(_, [Some(tok), Some(rest)])] ->
         Ok([tokfn(tok), ..do_lex(patterns, rest)])
       _ -> panic
@@ -59,25 +58,25 @@ fn do_lex(patterns: List(#(regex.Regex, fn(String) -> Token)), str) {
 }
 
 pub fn parse(tokens) {
-  do_parse(tokens, EOF).nodes
+  do_parse(tokens, None).nodes
 }
 
 type ParseResult {
   ParseResult(nodes: List(Node), remaining_tokens: List(Token))
 }
 
-fn do_parse(tokens: List(Token), terminator: Token) -> ParseResult {
+fn do_parse(tokens: List(Token), terminator: Option(Token)) -> ParseResult {
   case tokens {
     [TItem(item), ..tokens] -> {
       let ParseResult(nodes, tokens) = do_parse(tokens, terminator)
       ParseResult([Item(item), ..nodes], tokens)
     }
     [LParen(paren), ..tokens] -> {
-      let ParseResult(inside, tokens) = do_parse(tokens, RParen(paren))
+      let ParseResult(inside, tokens) = do_parse(tokens, Some(RParen(paren)))
       let ParseResult(outside, tokens) = do_parse(tokens, terminator)
       ParseResult([Parens(paren, inside), ..outside], tokens)
     }
-    [other, ..tokens] if other == terminator -> ParseResult([], tokens)
+    [other, ..tokens] if Some(other) == terminator -> ParseResult([], tokens)
     [] -> ParseResult([], [])
     _ -> panic
     // TODO: make it error correctly on unmatched parens
