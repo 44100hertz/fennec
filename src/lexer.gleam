@@ -27,7 +27,7 @@ pub fn lex(str) {
     #("\\]", fn(_str) { RParen(Square) }),
     #("\\d+[.]?\\d*", fn(str) { Item(Num(str)) }),
     #("\\d*[.]?\\d+", fn(str) { Item(Num(str)) }),
-    #("\\D\\S*", fn(str) { Item(Ident(str)) }),
+    #("\\D[^()\\[\\]{} \\t\\r\\n]*", fn(str) { Item(Ident(str)) }),
   ]
   |> map(fn(pair) {
     let assert Ok(re) = regex.from_string("^\\s*(" <> pair.0 <> ")\\s*(.*)$")
