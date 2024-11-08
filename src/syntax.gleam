@@ -14,6 +14,7 @@ pub type Item {
   Ident(String)
   Array
   Table
+  Alist
 }
 
 pub fn parse(tokens) {
@@ -26,10 +27,25 @@ type ParseResult {
 
 fn do_parse(tokens: List(Token), terminator: Option(Token)) -> ParseResult {
   case tokens {
+    // named function
+    [
+      LParen(Round),
+      lexer.Item(lexer.Ident("fn")),
+      lexer.Item(lexer.Ident(name)),
+      ..tokens
+    ] -> parse_fn(Some(name), tokens, terminator)
+
+    // anonymous function
+    [LParen(Round), lexer.Item(lexer.Ident("fn")), ..tokens] ->
+      parse_fn(None, tokens, terminator)
+
+    // standard item
     [lexer.Item(item), ..tokens] -> {
       let ParseResult(nodes, tokens) = do_parse(tokens, terminator)
       ParseResult([convert_item(item), ..nodes], tokens)
     }
+
+    // expression
     [LParen(paren), ..tokens] -> {
       let ParseResult(inside, tokens) = do_parse(tokens, Some(RParen(paren)))
       let ParseResult(outside, tokens) = do_parse(tokens, terminator)
@@ -40,12 +56,36 @@ fn do_parse(tokens: List(Token), terminator: Option(Token)) -> ParseResult {
       }
       ParseResult([expr, ..outside], tokens)
     }
+
+    // terminator
     [other, ..tokens] if Some(other) == terminator -> ParseResult([], tokens)
     [] -> ParseResult([], [])
     _ -> panic
     // TODO: make it error correctly on unmatched parens
     // TODO: parse function argument list into "alist"
   }
+}
+
+fn parse_fn(
+  name: Option(String),
+  tokens: List(Token),
+  terminator: Option(Token),
+) -> ParseResult {
+  let ParseResult(alist, tokens) = case tokens {
+    // Found argument list...Good!
+    [LParen(Square), ..tokens] -> do_parse(tokens, Some(RParen(Square)))
+    // Guess we'll make one...
+    _ -> ParseResult([], tokens)
+  }
+  let alist = Expr([Item(Alist), ..alist])
+  // parse function body
+  let ParseResult(inside, tokens) = do_parse(tokens, Some(RParen(Round)))
+  let ParseResult(outside, tokens) = do_parse(tokens, terminator)
+  let expr = case name {
+    Some(name) -> Expr([Item(Ident("fn")), Item(Ident(name)), alist, ..inside])
+    None -> Expr([Item(Ident("fn")), alist, ..inside])
+  }
+  ParseResult([expr, ..outside], tokens)
 }
 
 pub fn convert_item(item: lexer.Item) -> Node {
