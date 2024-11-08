@@ -43,11 +43,18 @@ pub fn render_content(expr: Node, path: List(Int), model: Model) {
       }),
     ],
     case expr {
+      Expr([Item(syntax.Document), ..nodes]) -> render_list(nodes, path, model)
       Expr([Item(syntax.Array), ..nodes]) ->
         list.flatten([
           [element.text("[")],
           render_list(nodes, path, model),
           [element.text("]")],
+        ])
+      Expr([Item(syntax.ArgumentList), ..nodes]) ->
+        list.flatten([
+          [element.text("<")],
+          render_list(nodes, path, model),
+          [element.text(">")],
         ])
       Expr(nodes) ->
         list.flatten([

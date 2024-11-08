@@ -23,6 +23,10 @@ pub type Item {
   ArgumentList
 }
 
+pub fn parse_string(str) {
+  str |> lexer.lex |> parse
+}
+
 pub fn parse(tokens) {
   tokens
   |> parse_syntax(None)
@@ -62,14 +66,14 @@ fn parse_syntax(tokens: List(Token), terminator: Option(Token)) -> ParseResult {
   }
 }
 
-pub fn convert_item(item: lexer.Item) -> Node {
+fn convert_item(item: lexer.Item) -> Node {
   case item {
     lexer.Num(n) -> Item(Num(n))
     lexer.Ident(i) -> Item(Ident(i))
   }
 }
 
-pub fn construct(node: Node) -> Node {
+fn construct(node: Node) -> Node {
   case node {
     Expr([Item(Ident("fn")), ..content]) -> construct_function(content)
     Expr(content) -> Expr(map(content, construct))
@@ -78,7 +82,7 @@ pub fn construct(node: Node) -> Node {
   }
 }
 
-pub fn construct_function(nodes: List(Node)) -> Node {
+fn construct_function(nodes: List(Node)) -> Node {
   let #(name, nodes) = case nodes {
     [Item(Ident(_)) as name, ..nodes] -> #(Some(name), nodes)
     other -> #(None, other)
@@ -104,7 +108,7 @@ pub fn construct_function(nodes: List(Node)) -> Node {
   )
 }
 
-pub fn construct_function_args(args: List(Node)) -> Node {
+fn construct_function_args(args: List(Node)) -> Node {
   Expr([
     Item(ArgumentList),
     ..list.map(args, fn(arg) {
