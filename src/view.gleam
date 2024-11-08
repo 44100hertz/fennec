@@ -1,14 +1,12 @@
 import gleam/list
-import gleam/option
 
 import lustre/attribute
 import lustre/element
 import lustre/element/html
 import lustre/event.{on}
 
-import lisp.{ALArg, ALError, Array, Call, Func}
 import model.{type Model, SelectPath}
-import syntax.{Item}
+import syntax.{type Node, Expr, Item}
 
 pub fn render(model: Model) {
   html.html([], [
@@ -31,7 +29,7 @@ pub fn render(model: Model) {
   ])
 }
 
-pub fn render_content(expr: lisp.Node, path: List(Int), model: Model) {
+pub fn render_content(expr: Node, path: List(Int), model: Model) {
   html.span(
     [
       attribute.classes([
@@ -44,29 +42,19 @@ pub fn render_content(expr: lisp.Node, path: List(Int), model: Model) {
       }),
     ],
     case expr {
-      Call(nodes) ->
+      Expr([Item(syntax.Array), ..nodes]) ->
+        list.flatten([
+          [element.text("[")],
+          render_list(nodes, path, model),
+          [element.text("]")],
+        ])
+      Expr(nodes) ->
         list.flatten([
           [element.text("(")],
           render_list(nodes, path, model),
           [element.text(")")],
         ])
-      Array(nodes) ->
-        list.flatten([
-          [element.text("[")],
-          render_list(nodes, path, model),
-          [element.text("]")],
-        ])
-      Func(name, alist, body) ->
-        list.flatten([
-          [element.text("( fn ")],
-          name |> option.map(fn(x) { [element.text(x)] }) |> option.unwrap([]),
-          [element.text("[")],
-          render_alist(alist),
-          [element.text("]")],
-          render_list(body, path, model),
-          [element.text(")")],
-        ])
-      lisp.Item(item) -> [render_item(item)]
+      Item(item) -> [render_item(item)]
     },
   )
 }
@@ -77,18 +65,8 @@ pub fn render_item(item: syntax.Item) {
   |> element.text
 }
 
-pub fn render_list(expr: List(lisp.Node), path: List(Int), model: Model) {
+pub fn render_list(expr: List(Node), path: List(Int), model: Model) {
   list.index_map(expr, fn(item, i) {
     render_content(item, list.append(path, [i]), model)
-  })
-}
-
-pub fn render_alist(expr: List(lisp.AListItem)) {
-  list.map(expr, fn(arg) {
-    case arg {
-      ALArg(s) -> s
-      ALError(node) -> syntax.to_string(node)
-    }
-    |> element.text
   })
 }
