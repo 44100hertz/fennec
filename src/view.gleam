@@ -1,9 +1,10 @@
+import gleam/io
 import gleam/list
 
 import lustre/attribute
 import lustre/element
 import lustre/element/html
-import lustre/event.{on}
+import lustre/event
 
 import model.{type Model, SelectPath}
 import syntax.{type Node, Expr, Item}
@@ -36,7 +37,7 @@ pub fn render_content(expr: Node, path: List(Int), model: Model) {
         #("node", True),
         #("selected", path == model.select_path),
       ]),
-      on("click", fn(event) {
+      event.on("click", fn(event) {
         event.stop_propagation(event)
         Ok(SelectPath(path))
       }),
@@ -55,6 +56,11 @@ pub fn render_content(expr: Node, path: List(Int), model: Model) {
           [element.text(")")],
         ])
       Item(item) -> [render_item(item)]
+      syntax.Error(..) -> [
+        html.div([attribute.class("error")], [
+          element.text(syntax.to_string(expr)),
+        ]),
+      ]
     },
   )
 }
