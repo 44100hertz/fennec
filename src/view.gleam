@@ -22,6 +22,8 @@ pub fn render(model: Model) {
         case key {
           "ArrowUp" -> model.Leave
           "ArrowDown" -> model.Enter
+          "ArrowRight" -> model.Sibling(1)
+          "ArrowLeft" -> model.Sibling(-1)
           _ -> model.Nop
         }
       }),

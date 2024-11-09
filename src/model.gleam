@@ -12,6 +12,7 @@ pub type Msg {
   SelectPath(List(Int))
   Leave
   Enter
+  Sibling(Int)
   Nop
 }
 
@@ -32,6 +33,7 @@ pub fn update(model: Model, msg: Msg) {
         },
       )
     Enter -> enter(model)
+    Sibling(offset) -> sibling(model, offset)
     Nop -> model
   }
 }
@@ -41,6 +43,19 @@ fn enter(model: Model) {
   case get_node(model.document, selection) {
     Some(..) -> Model(..model, selection:)
     None -> model
+  }
+}
+
+fn sibling(model: Model, offset: Int) -> Model {
+  case model.selection {
+    [] -> model
+    [select_head, ..selection] -> {
+      let selection = [select_head + offset, ..selection]
+      case get_node(model.document, selection) {
+        Some(..) -> Model(..model, selection:)
+        None -> model
+      }
+    }
   }
 }
 
@@ -55,7 +70,7 @@ fn do_get_node(node: syntax.Node, selection: List(Int)) -> Option(syntax.Node) {
   case node, selection {
     _, [] -> Some(node)
     syntax.Expr([car, ..]), [0, ..selection] -> do_get_node(car, selection)
-    syntax.Expr([_, ..cdr]), [idx, ..selection] ->
+    syntax.Expr([_, ..cdr]), [idx, ..selection] if idx > 0 ->
       do_get_node(syntax.Expr(cdr), [idx - 1, ..selection])
     _, _ -> None
   }
