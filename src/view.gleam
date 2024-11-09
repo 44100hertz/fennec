@@ -10,24 +10,43 @@ import model.{type Model, SelectPath}
 import syntax.{type Node, Expr, Item}
 
 pub fn render(model: Model) {
-  html.html([], [
-    html.head([], [
+  html.div(
+    [
+      attribute.attribute("tabindex", "0"),
+      attribute.autofocus(True),
+      attribute.style([
+        #("margin", "0"),
+        #("width", "100svw"),
+        #("height", "100svh"),
+      ]),
+      event.on_keydown(fn(key) {
+        io.print(key)
+        case key {
+          "ArrowUp" -> model.Leave
+          _ -> model.Nop
+        }
+      }),
+    ],
+    [
       html.style(
         [],
         "
-      .node {
-        display: flex;
-        flex: row;
-        padding: 0 0.5em;
-        user-select: none;
-      }
-      .selected {
-        background: red;
-      }",
+body {
+  margin: 0;
+}
+.node {
+  display: flex;
+  flex: row;
+  padding: 0 0.5em;
+  user-select: none;
+}
+.selected {
+  background: red;
+}",
       ),
-    ]),
-    html.body([], [render_content(model.parse_tree, [], model)]),
-  ])
+      render_content(model.parse_tree, [], model),
+    ],
+  )
 }
 
 pub fn render_content(expr: Node, path: List(Int), model: Model) {
@@ -35,7 +54,7 @@ pub fn render_content(expr: Node, path: List(Int), model: Model) {
     [
       attribute.classes([
         #("node", True),
-        #("selected", path == model.select_path),
+        #("selected", path == model.selection),
       ]),
       event.on("click", fn(event) {
         event.stop_propagation(event)
@@ -79,7 +98,5 @@ pub fn render_item(item: syntax.Item) {
 }
 
 pub fn render_list(expr: List(Node), path: List(Int), model: Model) {
-  list.index_map(expr, fn(item, i) {
-    render_content(item, list.append(path, [i]), model)
-  })
+  list.index_map(expr, fn(item, i) { render_content(item, [i, ..path], model) })
 }

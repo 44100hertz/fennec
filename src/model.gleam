@@ -1,11 +1,13 @@
 import syntax
 
 pub type Model {
-  Model(select_path: List(Int), parse_tree: syntax.Node)
+  Model(selection: List(Int), parse_tree: syntax.Node)
 }
 
 pub type Msg {
   SelectPath(List(Int))
+  Leave
+  Nop
 }
 
 pub fn init(_flags) {
@@ -15,6 +17,15 @@ pub fn init(_flags) {
 
 pub fn update(model: Model, msg: Msg) {
   case msg {
-    SelectPath(select_path) -> Model(..model, select_path:)
+    SelectPath(selection) -> Model(..model, selection:)
+    Leave ->
+      Model(
+        ..model,
+        selection: case model.selection {
+          [_, ..rest] -> rest
+          [] -> []
+        },
+      )
+    Nop -> model
   }
 }
