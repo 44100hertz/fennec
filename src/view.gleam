@@ -21,6 +21,7 @@ pub fn render(model: Model) {
       event.on_keydown(fn(key) {
         case key {
           "ArrowUp" -> model.Leave
+          "ArrowDown" -> model.Enter
           _ -> model.Nop
         }
       }),
