@@ -17,7 +17,6 @@ pub type ErrorKind {
 pub type Item {
   Num(String)
   Ident(String)
-  Document
   Array
   Table
   ArgumentList
@@ -30,7 +29,7 @@ pub fn parse_string(str) {
 pub fn parse(tokens) {
   tokens
   |> parse_syntax(None)
-  |> fn(res) { construct(Expr([Item(Document), ..res.nodes])) }
+  |> fn(res) { map(res.nodes, construct) }
 }
 
 type ParseResult {

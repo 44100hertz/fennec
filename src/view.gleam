@@ -1,4 +1,3 @@
-import gleam/io
 import gleam/list
 
 import lustre/attribute
@@ -20,7 +19,6 @@ pub fn render(model: Model) {
         #("height", "100svh"),
       ]),
       event.on_keydown(fn(key) {
-        io.print(key)
         case key {
           "ArrowUp" -> model.Leave
           _ -> model.Nop
@@ -41,10 +39,11 @@ body {
   user-select: none;
 }
 .selected {
-  background: red;
+  background: cornflowerblue;
+  border-bottom: 2px solid black;
 }",
       ),
-      render_content(model.parse_tree, [], model),
+      ..render_list(model.document, [], model)
     ],
   )
 }
@@ -62,7 +61,6 @@ pub fn render_content(expr: Node, path: List(Int), model: Model) {
       }),
     ],
     case expr {
-      Expr([Item(syntax.Document), ..nodes]) -> render_list(nodes, path, model)
       Expr([Item(syntax.Array), ..nodes]) ->
         list.flatten([
           [element.text("[")],
