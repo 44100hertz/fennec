@@ -1,15 +1,14 @@
 import gleam/bool
 import gleam/list
 import gleam/option.{type Option, None, Some}
-import gleam/result
 
-import syntax.{type Node, Expr, Ident, Item}
+import syntax.{type LispNode, Expr, Func}
 
 type Path =
   List(Int)
 
 pub type Model {
-  Model(document: List(syntax.Node), selection: Path)
+  Model(document: LispNode, selection: Path)
 }
 
 pub type Msg {
@@ -68,7 +67,7 @@ fn try_navigation_list_list(
   })
 }
 
-fn try_navigation(root: List(Node), path: Path, nav: Navigation) -> Option(Path) {
+fn try_navigation(root: LispNode, path: Path, nav: Navigation) -> Option(Path) {
   case nav, path {
     Leave, [_, ..rest] -> Some(rest)
     Leave, [] -> None
@@ -80,7 +79,7 @@ fn try_navigation(root: List(Node), path: Path, nav: Navigation) -> Option(Path)
     Jump(..), [] -> None
     Last, [_, ..parent_path] ->
       case get_node(root, parent_path) {
-        Some(Expr([_, ..] as nodes)) -> {
+        Some(Expr(_, [_, ..] as nodes)) -> {
           Some([list.length(nodes) - 1, ..parent_path])
         }
         _ -> None
@@ -89,7 +88,7 @@ fn try_navigation(root: List(Node), path: Path, nav: Navigation) -> Option(Path)
   }
 }
 
-fn get_node_then_path(root: List(Node), path: Path) -> Option(Path) {
+fn get_node_then_path(root: LispNode, path: Path) -> Option(Path) {
   get_node(root, path) |> option.map(fn(_) { path })
 }
 
@@ -100,17 +99,16 @@ fn flow_enter(model: Model) -> Option(Path) {
   // ergonomic enter
   case get_node(model.document, path) {
     // always jump to function body
-    Some(Expr([Item(Ident("fn")), Item(Ident(..))])) -> Some(4)
-    Some(Expr([Item(Ident("fn")), ..])) -> Some(3)
+    Some(Expr(Func(..), _)) -> Some(2)
     // try jumping to second first, then first
-    Some(Expr([_one, _two, ..])) -> Some(1)
-    Some(Expr([_one, ..])) -> Some(0)
+    Some(Expr(_, [_one, _two, ..])) -> Some(1)
+    Some(Expr(_, [_one, ..])) -> Some(0)
     _ -> None
   }
   |> option.map(list.prepend(path, _))
 }
 
-fn nearest_expression(root: List(Node), path: Path, tries: Int) -> Option(Path) {
+fn nearest_expression(root: LispNode, path: Path, tries: Int) -> Option(Path) {
   use <- bool.guard(tries >= 3, None)
   let offset = case tries {
     0 -> 0
@@ -146,16 +144,16 @@ fn flow_next(model: Model) -> Option(Path) {
   ])
 }
 
-fn get_node(node: List(syntax.Node), selection: Path) -> Option(syntax.Node) {
-  do_get_node(Expr(node), list.reverse(selection))
+fn get_node(node: LispNode, selection: Path) -> Option(LispNode) {
+  do_get_node(node, list.reverse(selection))
 }
 
-fn do_get_node(node: syntax.Node, selection: Path) -> Option(syntax.Node) {
+fn do_get_node(node: LispNode, selection: Path) -> Option(LispNode) {
   case node, selection {
     _, [] -> Some(node)
-    Expr([car, ..]), [0, ..selection] -> do_get_node(car, selection)
-    Expr([_, ..cdr]), [index, ..selection] if index > 0 ->
-      do_get_node(Expr(cdr), [index - 1, ..selection])
+    Expr(_, [car, ..]), [0, ..selection] -> do_get_node(car, selection)
+    Expr(kind, [_, ..cdr]), [index, ..selection] if index > 0 ->
+      do_get_node(Expr(kind, cdr), [index - 1, ..selection])
     _, _ -> None
   }
 }

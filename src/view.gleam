@@ -1,4 +1,5 @@
 import gleam/list
+import gleam/option
 
 import lustre/attribute
 import lustre/element
@@ -6,7 +7,9 @@ import lustre/element/html
 import lustre/event
 
 import model.{type Model, SelectPath}
-import syntax.{type Node, Expr, Item}
+import syntax.{
+  type LispNode, ArgumentList, Array, Call, Document, Expr, Func, Item, Table,
+}
 
 pub fn render(model: Model) {
   html.div([], [
@@ -45,14 +48,13 @@ body {
             _ -> model.Nop
           }
         }),
-        attribute.classes([#("selected", [] == model.selection)]),
       ],
-      render_list(model.document, [], model),
+      [render_content(model.document, [], model)],
     ),
   ])
 }
 
-pub fn render_content(expr: Node, path: List(Int), model: Model) {
+pub fn render_content(expr: LispNode, path: List(Int), model: Model) {
   html.span(
     [
       attribute.classes([
@@ -65,23 +67,37 @@ pub fn render_content(expr: Node, path: List(Int), model: Model) {
       }),
     ],
     case expr {
-      Expr([Item(syntax.Array), ..nodes]) ->
+      Expr(Document, nodes) -> render_list(nodes, path, model)
+      Expr(Call, nodes) ->
+        list.flatten([
+          [element.text("(")],
+          render_list(nodes, path, model),
+          [element.text(")")],
+        ])
+      Expr(Func(name), nodes) ->
+        list.flatten([
+          [element.text("(fn")],
+          name |> option.map(fn(x) { [element.text(x)] }) |> option.unwrap([]),
+          render_list(nodes, path, model),
+          [element.text(")")],
+        ])
+      Expr(Array, nodes) ->
         list.flatten([
           [element.text("[")],
           render_list(nodes, path, model),
           [element.text("]")],
         ])
-      Expr([Item(syntax.ArgumentList), ..nodes]) ->
+      Expr(ArgumentList, nodes) ->
         list.flatten([
           [element.text("<")],
           render_list(nodes, path, model),
           [element.text(">")],
         ])
-      Expr(nodes) ->
+      Expr(Table, nodes) ->
         list.flatten([
-          [element.text("(")],
+          [element.text("{")],
           render_list(nodes, path, model),
-          [element.text(")")],
+          [element.text("}")],
         ])
       Item(item) -> [render_item(item)]
       syntax.Error(..) -> [
@@ -99,6 +115,6 @@ pub fn render_item(item: syntax.Item) {
   |> element.text
 }
 
-pub fn render_list(expr: List(Node), path: List(Int), model: Model) {
+pub fn render_list(expr: List(LispNode), path: List(Int), model: Model) {
   list.index_map(expr, fn(item, i) { render_content(item, [i, ..path], model) })
 }
