@@ -9,29 +9,10 @@ import model.{type Model, SelectPath}
 import syntax.{type Node, Expr, Item}
 
 pub fn render(model: Model) {
-  html.div(
-    [
-      attribute.attribute("tabindex", "0"),
-      attribute.autofocus(True),
-      attribute.style([
-        #("margin", "0"),
-        #("width", "100svw"),
-        #("height", "100svh"),
-      ]),
-      event.on_keydown(fn(key) {
-        case key {
-          "ArrowUp" -> model.Leave
-          "ArrowDown" -> model.Enter
-          "ArrowRight" -> model.Sibling(1)
-          "ArrowLeft" -> model.Sibling(-1)
-          _ -> model.Nop
-        }
-      }),
-    ],
-    [
-      html.style(
-        [],
-        "
+  html.div([], [
+    html.style(
+      [],
+      "
 body {
   margin: 0;
 }
@@ -45,10 +26,30 @@ body {
   background: cornflowerblue;
   border-bottom: 2px solid black;
 }",
-      ),
-      ..render_list(model.document, [], model)
-    ],
-  )
+    ),
+    html.div(
+      [
+        attribute.attribute("tabindex", "0"),
+        attribute.autofocus(True),
+        attribute.style([
+          #("margin", "0"),
+          #("width", "100svw"),
+          #("height", "100svh"),
+        ]),
+        event.on_keydown(fn(key) {
+          case key {
+            "ArrowUp" -> model.Navigation([model.Leave])
+            "ArrowDown" -> model.FlowEnter
+            "ArrowRight" -> model.FlowNext
+            "ArrowLeft" -> model.FlowPrev
+            _ -> model.Nop
+          }
+        }),
+        attribute.classes([#("selected", [] == model.selection)]),
+      ],
+      render_list(model.document, [], model),
+    ),
+  ])
 }
 
 pub fn render_content(expr: Node, path: List(Int), model: Model) {
