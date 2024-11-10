@@ -2,7 +2,7 @@ import gleam/bool
 import gleam/list
 import gleam/option.{type Option, None, Some}
 
-import syntax.{type LispNode, Expr, Func}
+import syntax.{type LispNode, Expr}
 
 type Path =
   List(Int)
@@ -98,11 +98,9 @@ fn flow_enter(model: Model) -> Option(Path) {
 
   // ergonomic enter
   case get_node(model.document, path) {
-    // always jump to function body
-    Some(Expr(Func(..), _)) -> Some(2)
     // try jumping to second first, then first
-    Some(Expr(_, [_one, _two, ..])) -> Some(1)
-    Some(Expr(_, [_one, ..])) -> Some(0)
+    Some(Expr(_, [_, _, ..])) -> Some(1)
+    Some(Expr(_, [_, ..])) -> Some(0)
     _ -> None
   }
   |> option.map(list.prepend(path, _))
@@ -117,31 +115,56 @@ fn nearest_expression(root: LispNode, path: Path, tries: Int) -> Option(Path) {
     _ -> panic
     // unreachable
   }
-  use path <- option.then(case path {
-    [fst, ..rest] -> Some([fst + offset, ..rest])
-    [] -> None
-  })
+
+  let path = case path {
+    [fst, ..rest] -> [fst + offset, ..rest]
+    [] -> []
+  }
 
   case get_node(root, path) {
     Some(Expr(..)) -> Some(path)
-    _ -> nearest_expression(root, path, tries + 1)
+    _ if path != [] -> nearest_expression(root, path, tries + 1)
+    _ -> None
   }
 }
 
 fn flow_prev(model: Model) -> Option(Path) {
-  try_navigation_list_list(model, [
-    [Move(-1)],
-    [Leave, Move(-1), Enter, Last],
-    [Leave, Move(-1)],
-  ])
+  try_navigation_list_list(model, generate_sibling_flow(0, 0, 4, True))
 }
 
 fn flow_next(model: Model) -> Option(Path) {
-  try_navigation_list_list(model, [
-    [Move(1)],
-    [Leave, Move(1), Enter],
-    [Leave, Move(1)],
-  ])
+  try_navigation_list_list(model, generate_sibling_flow(0, 0, 4, False))
+}
+
+// Generate flows to test, i.e.
+// [Move(-1)],
+// [Leave, Move(-1), Enter, Last],
+// [Leave, Move(-1)],
+// [Leave, Leave, Move(-1), Enter, Last, Enter, Last],
+// [Leave, Leave, Move(-1), Enter, Last],
+// [Leave, Leave, Move(-1)],
+fn generate_sibling_flow(
+  depth,
+  depth_right,
+  max_depth,
+  is_prev,
+) -> List(List(Navigation)) {
+  use <- bool.guard(depth >= max_depth, [])
+  let #(move, reenter) = case is_prev {
+    True -> #(Move(-1), [Enter, Last])
+    False -> #(Move(1), [Enter])
+  }
+  let nav =
+    list.flatten([
+      list.repeat(Leave, depth),
+      [move],
+      ..list.repeat(reenter, depth_right)
+    ])
+  let #(depth, depth_right) = case depth_right > 0 {
+    True -> #(depth, depth_right - 1)
+    False -> #(depth + 1, depth + 1)
+  }
+  [nav, ..generate_sibling_flow(depth, depth_right, max_depth, is_prev)]
 }
 
 fn get_node(node: LispNode, selection: Path) -> Option(LispNode) {
