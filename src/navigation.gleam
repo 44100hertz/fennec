@@ -2,7 +2,7 @@ import gleam/bool
 import gleam/list
 import gleam/option.{type Option, None, Some}
 
-import syntax.{type LispNode, Expr}
+import syntax.{type LispNode, Expr, get_node}
 
 pub type Navigation {
   Leave
@@ -14,48 +14,6 @@ pub type Navigation {
 
 type Path =
   List(Int)
-
-pub fn try_navigation_list(
-  root: LispNode,
-  path: Path,
-  navs: List(Navigation),
-) -> Option(Path) {
-  list.fold(navs, Some(path), fn(path, nav) {
-    option.then(path, try_navigation(root, _, nav))
-  })
-}
-
-pub fn flow_prev(root: LispNode, path: Path) -> Option(Path) {
-  try_navigation_list_iter(
-    root,
-    path,
-    SiblingFlowStep(0, 0, list.length(path), True),
-    sibling_flow_step,
-  )
-}
-
-pub fn flow_next(root: LispNode, path: Path) -> Option(Path) {
-  try_navigation_list_iter(
-    root,
-    path,
-    SiblingFlowStep(0, 0, list.length(path), False),
-    sibling_flow_step,
-  )
-}
-
-// Enter the nearest possible enterable node
-pub fn flow_enter(root: LispNode, path: Path) -> Option(Path) {
-  use path <- option.then(nearest_expression(root, path, 0))
-
-  // ergonomic enter
-  case get_node(root, path) {
-    // try jumping to second first, then first
-    Some(Expr(_, [_, _, ..])) -> Some(1)
-    Some(Expr(_, [_, ..])) -> Some(0)
-    _ -> None
-  }
-  |> option.map(list.prepend(path, _))
-}
 
 fn try_navigation(root: LispNode, path: Path, nav: Navigation) -> Option(Path) {
   case nav, path {
@@ -93,26 +51,32 @@ fn get_node_then_path(root: LispNode, path: Path) -> Option(Path) {
   get_node(root, path) |> option.map(fn(_) { path })
 }
 
-fn nearest_expression(root: LispNode, path: Path, tries: Int) -> Option(Path) {
-  use <- bool.guard(tries >= 3, None)
-  let offset = case tries {
-    0 -> 0
-    1 -> 1
-    2 -> -1
-    _ -> panic
-    // unreachable
-  }
+pub fn try_navigation_list(
+  root: LispNode,
+  path: Path,
+  navs: List(Navigation),
+) -> Option(Path) {
+  list.fold(navs, Some(path), fn(path, nav) {
+    option.then(path, try_navigation(root, _, nav))
+  })
+}
 
-  let path = case path {
-    [fst, ..rest] -> [fst + offset, ..rest]
-    [] -> []
-  }
+pub fn flow_prev(root: LispNode, path: Path) -> Option(Path) {
+  try_navigation_list_iter(
+    root,
+    path,
+    SiblingFlowStep(0, 0, list.length(path), True),
+    sibling_flow_step,
+  )
+}
 
-  case get_node(root, path) {
-    Some(Expr(..)) -> Some(path)
-    _ if path != [] -> nearest_expression(root, path, tries + 1)
-    _ -> None
-  }
+pub fn flow_next(root: LispNode, path: Path) -> Option(Path) {
+  try_navigation_list_iter(
+    root,
+    path,
+    SiblingFlowStep(0, 0, list.length(path), False),
+    sibling_flow_step,
+  )
 }
 
 type SiblingFlowStep {
@@ -146,16 +110,38 @@ fn sibling_flow_step(step) -> Option(#(List(Navigation), SiblingFlowStep)) {
   Some(#(nav, SiblingFlowStep(depth, depth_right, max_depth, is_prev)))
 }
 
-fn get_node(node: LispNode, selection: Path) -> Option(LispNode) {
-  do_get_node(node, list.reverse(selection))
+// Enter the nearest possible enterable node
+pub fn flow_enter(root: LispNode, path: Path) -> Option(Path) {
+  use path <- option.then(nearest_expression(root, path, 0))
+
+  // ergonomic enter
+  case get_node(root, path) {
+    // try jumping to second first, then first
+    Some(Expr(_, [_, _, ..])) -> Some(1)
+    Some(Expr(_, [_, ..])) -> Some(0)
+    _ -> None
+  }
+  |> option.map(list.prepend(path, _))
 }
 
-fn do_get_node(node: LispNode, selection: Path) -> Option(LispNode) {
-  case node, selection {
-    _, [] -> Some(node)
-    Expr(_, [car, ..]), [0, ..selection] -> do_get_node(car, selection)
-    Expr(kind, [_, ..cdr]), [index, ..selection] if index > 0 ->
-      do_get_node(Expr(kind, cdr), [index - 1, ..selection])
-    _, _ -> None
+fn nearest_expression(root: LispNode, path: Path, tries: Int) -> Option(Path) {
+  use <- bool.guard(tries >= 3, None)
+  let offset = case tries {
+    0 -> 0
+    1 -> 1
+    2 -> -1
+    _ -> panic
+    // unreachable
+  }
+
+  let path = case path {
+    [fst, ..rest] -> [fst + offset, ..rest]
+    [] -> []
+  }
+
+  case get_node(root, path) {
+    Some(Expr(..)) -> Some(path)
+    _ if path != [] -> nearest_expression(root, path, tries + 1)
+    _ -> None
   }
 }

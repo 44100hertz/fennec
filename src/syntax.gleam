@@ -124,6 +124,20 @@ fn construct_function_args(args: List(SyntaxNode)) -> LispNode {
   )
 }
 
+pub fn get_node(node: LispNode, selection: List(Int)) -> Option(LispNode) {
+  do_get_node(node, list.reverse(selection))
+}
+
+fn do_get_node(node: LispNode, selection: List(Int)) -> Option(LispNode) {
+  case node, selection {
+    _, [] -> Some(node)
+    Expr(_, [car, ..]), [0, ..selection] -> do_get_node(car, selection)
+    Expr(kind, [_, ..cdr]), [index, ..selection] if index > 0 ->
+      do_get_node(Expr(kind, cdr), [index - 1, ..selection])
+    _, _ -> None
+  }
+}
+
 // TODO: clean this up, create a real formatter. Sigh
 pub fn to_string(syntax) {
   case syntax {
