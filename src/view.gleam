@@ -7,6 +7,7 @@ import lustre/element/html
 import lustre/event
 
 import model.{type Model, SelectPath}
+import navigation
 import syntax.{
   type LispNode, ArgumentList, Array, Call, Document, Expr, Func, Item, Table,
 }
@@ -41,7 +42,7 @@ body {
         ]),
         event.on_keydown(fn(key) {
           case key {
-            "ArrowUp" -> model.Navigation([model.Leave])
+            "ArrowUp" -> model.Navigation([navigation.Leave])
             "ArrowDown" -> model.FlowEnter
             "ArrowRight" -> model.FlowNext
             "ArrowLeft" -> model.FlowPrev
@@ -76,7 +77,7 @@ pub fn render_content(expr: LispNode, path: List(Int), model: Model) {
         ])
       Expr(Func(name), nodes) ->
         list.flatten([
-          [element.text("(fn")],
+          [element.text("(fn ")],
           name |> option.map(fn(x) { [element.text(x)] }) |> option.unwrap([]),
           render_list(nodes, path, model),
           [element.text(")")],
