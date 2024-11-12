@@ -4,6 +4,9 @@ import gleam/string
 
 import lexer.{type Paren, type Token, Curly, LParen, RParen, Round, Square}
 
+type Path =
+  List(Int)
+
 pub type Node(kind) {
   Expr(kind: kind, content: List(Node(kind)))
   Error(kind: ErrorKind, content: Node(kind))
@@ -124,17 +127,64 @@ fn construct_function_args(args: List(SyntaxNode)) -> LispNode {
   )
 }
 
-pub fn get_node(node: LispNode, selection: List(Int)) -> Option(LispNode) {
-  do_get_node(node, list.reverse(selection))
+pub fn get_node(root: Node(a), selection: Path) -> Option(Node(a)) {
+  do_get_node(root, list.reverse(selection))
 }
 
-fn do_get_node(node: LispNode, selection: List(Int)) -> Option(LispNode) {
-  case node, selection {
-    _, [] -> Some(node)
+fn do_get_node(root: Node(a), selection: Path) -> Option(Node(a)) {
+  case root, selection {
+    _, [] -> Some(root)
     Expr(_, [car, ..]), [0, ..selection] -> do_get_node(car, selection)
     Expr(kind, [_, ..cdr]), [index, ..selection] if index > 0 ->
       do_get_node(Expr(kind, cdr), [index - 1, ..selection])
     _, _ -> None
+  }
+}
+
+pub type NodeOperation(a) {
+  NodeDelete
+  NodeReplace(new: Node(a))
+  NodeInsert(new: Node(a))
+  NodeAppend(new: Node(a))
+}
+
+pub type LispNodeOperation =
+  NodeOperation(LispNodeKind)
+
+pub type SyntaxNodeOperation =
+  NodeOperation(Paren)
+
+pub fn node_operation(
+  operation: NodeOperation(a),
+  root: Node(a),
+  selection: Path,
+) -> Option(Node(a)) {
+  do_node_operation(operation, root, list.reverse(selection))
+}
+
+fn do_node_operation(
+  operation: NodeOperation(a),
+  root: Node(a),
+  path: Path,
+) -> Option(Node(a)) {
+  case operation, root, path {
+    NodeReplace(new), _, [] -> Some(new)
+    NodeDelete(..), _, [] -> None
+    NodeDelete, Expr(k, [_, ..cdr]), [0] -> Some(Expr(k, cdr))
+    NodeInsert(new), Expr(k, content), [0] -> Some(Expr(k, [new, ..content]))
+    NodeAppend(new), Expr(k, [car, ..cdr]), [0] ->
+      Some(Expr(k, [car, new, ..cdr]))
+    NodeAppend(new), Expr(k, []), [0] -> Some(Expr(k, [new]))
+    _, Expr(k, [car, ..cdr]), [0, ..rest] ->
+      do_node_operation(operation, car, rest)
+      |> option.map(fn(node) { Expr(k, [node, ..cdr]) })
+    _, Expr(k, [car, ..cdr]), [n, ..rest] if n > 0 ->
+      do_node_operation(operation, Expr(k, cdr), [n - 1, ..rest])
+      |> option.map(fn(node) {
+        let assert Expr(k, values) = node
+        Expr(k, [car, ..values])
+      })
+    _, _, _ -> None
   }
 }
 

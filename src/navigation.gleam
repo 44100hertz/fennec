@@ -15,7 +15,11 @@ pub type Navigation {
 type Path =
   List(Int)
 
-fn try_navigation(root: LispNode, path: Path, nav: Navigation) -> Option(Path) {
+pub fn try_navigation(
+  root: LispNode,
+  path: Path,
+  nav: Navigation,
+) -> Option(Path) {
   case nav, path {
     Leave, [_, ..rest] -> Some(rest)
     Leave, [] -> None
@@ -51,7 +55,7 @@ fn get_node_then_path(root: LispNode, path: Path) -> Option(Path) {
   get_node(root, path) |> option.map(fn(_) { path })
 }
 
-pub fn try_navigation_list(
+fn try_navigation_list(
   root: LispNode,
   path: Path,
   navs: List(Navigation),
