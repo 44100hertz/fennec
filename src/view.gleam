@@ -47,19 +47,47 @@ pub fn operation_to_effect(operation: Operation) {
     op.JoinLeft -> model.Nop
     op.JoinRight -> model.Nop
     op.Convolute -> model.Nop
-    // op.SlurpLeft ->
-    //   model.Multi([
-    //     model.SavePath,
-    //     model.FlowPrev,
-    //     model.Copy("0"),
-    //     model.Delete,
-    //     model.LoadPath,
-    //     model.Insert("0"),
-    //   ])
-    op.SlurpLeft -> model.Nop
-    op.SlurpRight -> model.Nop
-    op.BarfLeft -> model.Nop
-    op.BarfRight -> model.Nop
+    op.SlurpLeft ->
+      model.Multi([
+        Navigation(nav.LeaveIfItem),
+        Navigation(nav.Move(-1)),
+        model.Copy("0"),
+        model.Delete,
+        Navigation(nav.Enter),
+        model.Insert("0"),
+        Navigation(nav.Leave),
+      ])
+    op.SlurpRight ->
+      model.Multi([
+        Navigation(nav.LeaveIfItem),
+        Navigation(nav.Move(1)),
+        model.Copy("0"),
+        model.Delete,
+        Navigation(nav.Move(-1)),
+        Navigation(nav.Enter),
+        Navigation(nav.Last),
+        model.Append("0"),
+        Navigation(nav.Leave),
+      ])
+    op.BarfLeft ->
+      model.Multi([
+        Navigation(nav.EnterIfExpr),
+        Navigation(nav.Jump(0)),
+        model.Copy("0"),
+        model.Delete,
+        Navigation(nav.Leave),
+        model.Insert("0"),
+        Navigation(nav.Move(1)),
+      ])
+    op.BarfRight ->
+      model.Multi([
+        Navigation(nav.EnterIfExpr),
+        Navigation(nav.Last),
+        model.Copy("0"),
+        model.Delete,
+        Navigation(nav.Leave),
+        model.Append("0"),
+      ])
     op.DragPrev ->
       model.Multi([
         model.Copy("0"),

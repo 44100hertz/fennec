@@ -15,7 +15,6 @@ pub type Model {
     selection: Path,
     registers: Dict(String, LispNode),
     keybinds: Dict(String, Operation),
-    saved_selection: Path,
   )
 }
 
@@ -24,8 +23,6 @@ pub type Msg {
   Multi(List(Msg))
   SelectPath(Path)
   Copy(register: String)
-  SavePath
-  LoadPath
   Delete
   Replace(register: String)
   Insert(register: String)
@@ -44,7 +41,6 @@ pub fn init(_flags) {
     document: code |> syntax.parse_string,
     selection: [],
     registers: dict.new(),
-    saved_selection: [],
     keybinds: dict.from_list([
       #("^", op.Root),
       #("0", op.First),
@@ -96,15 +92,6 @@ pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
       wrap_nav(model, fn(root, path) {
         navigation.try_navigation(root, path, nav)
       })
-    SavePath -> Some(Model(..model, saved_selection: model.selection))
-    LoadPath ->
-      Some(
-        Model(
-          ..model,
-          selection: model.saved_selection,
-          saved_selection: model.selection,
-        ),
-      )
     Copy(register) ->
       syntax.get_node(model.document, model.selection)
       |> option.map(fn(node) {
