@@ -22,10 +22,14 @@ pub type SyntaxNode =
 pub type LispNodeKind {
   Document
   Call
-  Func(name: Option(String))
+  Func(name: Option(String), args: List(Argument))
   Array
   Table
-  ArgumentList
+}
+
+pub type Argument {
+  Argument(String)
+  ArgumentInvalid(content: LispNode)
 }
 
 pub type ErrorKind {
@@ -109,22 +113,19 @@ fn construct_function(nodes: List(SyntaxNode)) -> LispNode {
 
   let #(args, nodes) = case nodes {
     [Expr(Square, args), ..nodes] -> #(construct_function_args(args), nodes)
-    _ -> #(Expr(ArgumentList, []), nodes)
+    _ -> #([], nodes)
   }
 
-  Expr(Func(name), [args, ..list.map(nodes, construct)])
+  Expr(Func(name, args), list.map(nodes, construct))
 }
 
-fn construct_function_args(args: List(SyntaxNode)) -> LispNode {
-  Expr(
-    ArgumentList,
-    list.map(args, fn(arg) {
-      case arg {
-        Item(Ident(arg)) -> Item(Ident(arg))
-        other -> Error(InvalidArgument, construct(other))
-      }
-    }),
-  )
+fn construct_function_args(args: List(SyntaxNode)) -> List(Argument) {
+  list.map(args, fn(arg) {
+    case arg {
+      Item(Ident(arg)) -> Argument(arg)
+      other -> ArgumentInvalid(construct(other))
+    }
+  })
 }
 
 pub fn get_node(root: Node(a), selection: Path) -> Option(Node(a)) {
@@ -193,16 +194,40 @@ pub fn to_string(syntax) {
   case syntax {
     Expr(Document, content) -> list_to_string(content, "\n")
     Expr(Array, content) -> "[" <> list_to_string(content, " ") <> "]"
-    Expr(ArgumentList, content) -> "[" <> list_to_string(content, " ") <> "]"
     Expr(Table, content) -> "{" <> list_to_string(content, " ") <> "}"
     Expr(Call, content) -> "(" <> list_to_string(content, " ") <> ")"
-    Expr(Func(None), content) -> "(fn " <> list_to_string(content, " ") <> ")"
-    Expr(Func(Some(name)), content) ->
-      "(fn " <> name <> " " <> list_to_string(content, " ") <> ")"
+    Expr(Func(None, args), content) ->
+      ["(fn ", args_to_string(args), " ", list_to_string(content, " "), ")"]
+      |> string.concat
+    Expr(Func(Some(name), args), content) ->
+      [
+        "(fn ",
+        name,
+        " ",
+        args_to_string(args),
+        " ",
+        list_to_string(content, " "),
+        ")",
+      ]
+      |> string.concat
     Item(item) -> item_to_string(item)
     Error(err, node) ->
       "!!ERROR: " <> error_to_string(err) <> " (" <> to_string(node) <> ") !!"
   }
+}
+
+pub fn args_to_string(args: List(Argument)) -> String {
+  let inner =
+    args
+    |> list.map(fn(arg) {
+      case arg {
+        Argument(arg) -> arg
+        ArgumentInvalid(content) -> to_string(content)
+      }
+    })
+    |> list.intersperse(" ")
+    |> string.concat
+  "[ " <> inner <> " ]"
 }
 
 pub fn error_to_string(error: ErrorKind) -> String {

@@ -11,7 +11,8 @@ import model.{type Model, Navigation, SelectPath}
 import navigation as nav
 import operations.{type Operation} as op
 import syntax.{
-  type LispNode, ArgumentList, Array, Call, Document, Expr, Func, Item, Table,
+  type Argument, type LispNode, Argument, ArgumentInvalid, Array, Call, Document,
+  Expr, Func, Item, Table,
 }
 
 pub fn operation_to_effect(operation: Operation) {
@@ -174,10 +175,11 @@ pub fn render_content(expr: LispNode, path: List(Int), model: Model) {
           render_list(nodes, path, model),
           [element.text(")")],
         ])
-      Expr(Func(name), nodes) ->
+      Expr(Func(name, args), nodes) ->
         list.flatten([
           [element.text("(fn ")],
           name |> option.map(fn(x) { [element.text(x)] }) |> option.unwrap([]),
+          render_args(args),
           render_list(nodes, path, model),
           [element.text(")")],
         ])
@@ -186,12 +188,6 @@ pub fn render_content(expr: LispNode, path: List(Int), model: Model) {
           [element.text("[")],
           render_list(nodes, path, model),
           [element.text("]")],
-        ])
-      Expr(ArgumentList, nodes) ->
-        list.flatten([
-          [element.text("<")],
-          render_list(nodes, path, model),
-          [element.text(">")],
         ])
       Expr(Table, nodes) ->
         list.flatten([
@@ -213,6 +209,15 @@ pub fn render_item(item: syntax.Item) {
   item
   |> syntax.item_to_string
   |> element.text
+}
+
+pub fn render_args(args: List(Argument)) {
+  list.map(args, fn(arg) {
+    case arg {
+      Argument(ident) -> element.text(ident)
+      ArgumentInvalid(..) -> element.text("Invalid Arg")
+    }
+  })
 }
 
 pub fn render_list(expr: List(LispNode), path: List(Int), model: Model) {

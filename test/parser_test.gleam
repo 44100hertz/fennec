@@ -1,7 +1,9 @@
 import gleam/option.{None, Some}
 import gleeunit/should
 import lexer
-import syntax.{ArgumentList, Call, Document, Expr, Func, Ident, Item, Num}
+import syntax.{
+  Argument, ArgumentInvalid, Call, Document, Expr, Func, Ident, Item, Num,
+}
 
 pub fn expression_test() {
   "(* x 4) (* (+ x 2) 4)"
@@ -25,8 +27,7 @@ pub fn function_test() {
   |> syntax.parse
   |> should.equal(
     Expr(Document, [
-      Expr(Func(None), [
-        Expr(ArgumentList, [Item(Ident("x"))]),
+      Expr(Func(None, [Argument("x")]), [
         Expr(Call, [Item(Ident("*")), Item(Ident("x")), Item(Ident("x"))]),
       ]),
     ]),
@@ -37,8 +38,7 @@ pub fn function_test() {
   |> syntax.parse
   |> should.equal(
     Expr(Document, [
-      Expr(Func(Some("square")), [
-        Expr(ArgumentList, [Item(Ident("x"))]),
+      Expr(Func(Some("square"), [Argument("x")]), [
         Expr(Call, [Item(Ident("*")), Item(Ident("x")), Item(Ident("x"))]),
       ]),
     ]),
@@ -51,9 +51,8 @@ pub fn bad_function_test() {
   |> syntax.parse
   |> should.equal(
     Expr(Document, [
-      Expr(Func(None), [
+      Expr(Func(None, []), [
         // inject an argument list if none exists
-        Expr(ArgumentList, []),
         Item(Num("1")),
       ]),
     ]),
@@ -63,13 +62,6 @@ pub fn bad_function_test() {
   |> lexer.lex
   |> syntax.parse
   |> should.equal(
-    Expr(Document, [
-      Expr(Func(None), [
-        // mark an argument as bad
-        Expr(ArgumentList, [
-          syntax.Error(syntax.InvalidArgument, Item(Num("1"))),
-        ]),
-      ]),
-    ]),
+    Expr(Document, [Expr(Func(None, [ArgumentInvalid(Item(Num("1")))]), [])]),
   )
 }
