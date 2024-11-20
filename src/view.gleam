@@ -169,9 +169,10 @@ pub fn render_content(expr: LispNode, path: List(Int), model: Model) {
     ],
     case expr {
       Expr(Document, nodes) -> render_list(nodes, path, model)
-      Expr(Call, nodes) ->
+      Expr(Call(fst), nodes) ->
         list.flatten([
           [element.text("(")],
+          [render_content(fst, path, model)],
           render_list(nodes, path, model),
           [element.text(")")],
         ])

@@ -11,10 +11,9 @@ pub fn expression_test() {
   |> syntax.parse
   |> should.equal(
     Expr(Document, [
-      Expr(Call, [Item(Ident("*")), Item(Ident("x")), Item(Num("4"))]),
-      Expr(Call, [
-        Item(Ident("*")),
-        Expr(Call, [Item(Ident("+")), Item(Ident("x")), Item(Num("2"))]),
+      Expr(Call(Item(Ident("*"))), [Item(Ident("x")), Item(Num("4"))]),
+      Expr(Call(Item(Ident("*"))), [
+        Expr(Call(Item(Ident("+"))), [Item(Ident("x")), Item(Num("2"))]),
         Item(Num("4")),
       ]),
     ]),
@@ -28,7 +27,7 @@ pub fn function_test() {
   |> should.equal(
     Expr(Document, [
       Expr(Func(None, [Argument("x")]), [
-        Expr(Call, [Item(Ident("*")), Item(Ident("x")), Item(Ident("x"))]),
+        Expr(Call(Item(Ident("*"))), [Item(Ident("x")), Item(Ident("x"))]),
       ]),
     ]),
   )
@@ -39,7 +38,7 @@ pub fn function_test() {
   |> should.equal(
     Expr(Document, [
       Expr(Func(Some("square"), [Argument("x")]), [
-        Expr(Call, [Item(Ident("*")), Item(Ident("x")), Item(Ident("x"))]),
+        Expr(Call(Item(Ident("*"))), [Item(Ident("x")), Item(Ident("x"))]),
       ]),
     ]),
   )

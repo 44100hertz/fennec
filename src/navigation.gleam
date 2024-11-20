@@ -132,15 +132,10 @@ fn sibling_flow_step(step) -> Option(#(List(Navigation), SiblingFlowStep)) {
 // Enter the nearest possible enterable node
 pub fn flow_enter(root: LispNode, path: Path) -> Option(Path) {
   use path <- option.then(nearest_expression(root, path, 0))
-
-  // ergonomic enter
   case get_node(root, path) {
-    // try jumping to second first, then first
-    Some(Expr(_, [_, _, ..])) -> Some(1)
-    Some(Expr(_, [_, ..])) -> Some(0)
+    Some(Expr(_, [_, ..])) -> Some([0, ..path])
     _ -> None
   }
-  |> option.map(list.prepend(path, _))
 }
 
 fn nearest_expression(root: LispNode, path: Path, tries: Int) -> Option(Path) {

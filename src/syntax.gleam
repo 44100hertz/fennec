@@ -21,7 +21,7 @@ pub type SyntaxNode =
 
 pub type LispNodeKind {
   Document
-  Call
+  Call(cdr: LispNode)
   Func(name: Option(String), args: List(Argument))
   Array
   Table
@@ -33,7 +33,8 @@ pub type Argument {
 }
 
 pub type ErrorKind {
-  InvalidArgument
+  EmptyParens
+  NotCallable
 }
 
 pub type Item {
@@ -91,17 +92,15 @@ fn construct(node: SyntaxNode) -> LispNode {
   case node {
     Expr(Round, [Item(Ident("fn")), ..content]) -> construct_function(content)
     Expr(paren, content) ->
-      Expr(paren_to_lisp(paren), list.map(content, construct))
+      case paren, content {
+        Square, c -> Expr(Array, list.map(c, construct))
+        Curly, c -> Expr(Table, list.map(c, construct))
+        Round, [] -> Error(EmptyParens, construct(node))
+        Round, [fst, ..rest] ->
+          Expr(Call(construct(fst)), list.map(rest, construct))
+      }
     Item(item) -> Item(item)
     Error(kind, content) -> Error(kind, construct(content))
-  }
-}
-
-fn paren_to_lisp(paren: Paren) -> LispNodeKind {
-  case paren {
-    Round -> Call
-    Square -> Array
-    Curly -> Table
   }
 }
 
@@ -195,7 +194,8 @@ pub fn to_string(syntax) {
     Expr(Document, content) -> list_to_string(content, "\n")
     Expr(Array, content) -> "[" <> list_to_string(content, " ") <> "]"
     Expr(Table, content) -> "{" <> list_to_string(content, " ") <> "}"
-    Expr(Call, content) -> "(" <> list_to_string(content, " ") <> ")"
+    Expr(Call(car), content) ->
+      "(" <> to_string(car) <> " " <> list_to_string(content, " ") <> ")"
     Expr(Func(None, args), content) ->
       ["(fn ", args_to_string(args), " ", list_to_string(content, " "), ")"]
       |> string.concat
@@ -232,7 +232,8 @@ pub fn args_to_string(args: List(Argument)) -> String {
 
 pub fn error_to_string(error: ErrorKind) -> String {
   case error {
-    InvalidArgument -> "Invalid Argument"
+    EmptyParens -> "Empty Parentheses"
+    NotCallable -> "Function call with non-callable item"
   }
 }
 
