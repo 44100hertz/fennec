@@ -56,6 +56,7 @@ pub type Msg {
   Delete
   Replace(register: String)
   Insert(register: String)
+  InsertInto(register: String)
   Append(register: String)
   Root
   Navigation(Navigation)
@@ -135,6 +136,12 @@ pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
         Model(..model, registers: dict.insert(model.registers, register, node))
       })
     Insert(register) -> wrap_register_op(model, register, syntax.NodeInsert(_))
+    InsertInto(register) ->
+      wrap_register_op(
+        Model(..model, selection: [0, ..model.selection]),
+        register,
+        syntax.NodeInsert(_),
+      )
     Append(register) -> wrap_register_op(model, register, syntax.NodeAppend(_))
     Delete -> wrap_op(model, syntax.NodeDelete)
     Replace(register) ->
