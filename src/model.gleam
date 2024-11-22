@@ -1,6 +1,7 @@
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/set.{type Set}
 import navigation.{type Navigation}
 import operations.{type Operation} as op
 
@@ -14,11 +15,40 @@ pub type Model {
     document: LispNode,
     selection: Path,
     registers: Dict(String, LispNode),
-    keybinds: Dict(String, Operation),
+    keybinds: Dict(KeyMatch, Operation),
+    modifiers: Set(Modifier),
   )
 }
 
+pub type KeyMatch {
+  KeyMatch(key: String, shift: Bool, control: Bool, alt: Bool)
+  KeyMatchAnyCase(key: String, control: Bool, alt: Bool)
+}
+
+fn key(key) {
+  KeyMatchAnyCase(key, False, False)
+}
+
+fn shift(key) {
+  KeyMatch(key, True, False, False)
+}
+
+fn ctrl(key) {
+  KeyMatch(key, False, True, False)
+}
+
+fn alt(key) {
+  KeyMatch(key, False, False, True)
+}
+
+pub type Modifier {
+  Shift
+  Control
+  Alt
+}
+
 pub type Msg {
+  SetModifier(Modifier, Bool)
   Alternatives(List(Msg))
   Multi(List(Msg))
   SelectPath(Path)
@@ -42,31 +72,36 @@ pub fn init(_flags) {
     selection: [],
     registers: dict.new(),
     keybinds: dict.from_list([
-      #("^", op.Root),
-      #("0", op.First),
-      #("$", op.Last),
-      #("j", op.FlowEnter),
-      #("k", op.Leave),
-      #("h", op.FlowPrev),
-      #("l", op.FlowNext),
-      #("y", op.Copy),
-      #("i", op.Insert),
-      #("a", op.Append),
-      #("x", op.Delete),
-      #("r", op.Raise),
-      #("u", op.Unwrap),
-      #("d", op.Duplicate),
-      #("s", op.Split),
-      #("(", op.JoinLeft),
-      #(")", op.JoinRight),
-      #("%", op.Convolute),
-      #("[", op.SlurpLeft),
-      #("]", op.SlurpRight),
-      #("{", op.BarfLeft),
-      #("}", op.BarfRight),
-      #("ArrowLeft", op.DragPrev),
-      #("ArrowRight", op.DragNext),
+      #(key("^"), op.Root),
+      #(key("0"), op.First),
+      #(key("$"), op.Last),
+      #(key("j"), op.FlowEnter),
+      #(key("k"), op.Leave),
+      #(key("h"), op.FlowPrev),
+      #(key("ArrowLeft"), op.FlowPrev),
+      #(key("l"), op.FlowNext),
+      #(key("ArrowRight"), op.FlowNext),
+      #(key("H"), op.DragPrev),
+      #(shift("ArrowLeft"), op.DragPrev),
+      #(key("L"), op.DragNext),
+      #(shift("ArrowRight"), op.DragNext),
+      #(key("y"), op.Copy),
+      #(key("i"), op.Insert),
+      #(key("a"), op.Append),
+      #(key("x"), op.Delete),
+      #(key("r"), op.Raise),
+      #(key("u"), op.Unwrap),
+      #(key("d"), op.Duplicate),
+      #(key("s"), op.Split),
+      #(key("("), op.JoinLeft),
+      #(key(")"), op.JoinRight),
+      #(key("%"), op.Convolute),
+      #(key("["), op.SlurpLeft),
+      #(key("]"), op.SlurpRight),
+      #(key("{"), op.BarfLeft),
+      #(key("}"), op.BarfRight),
     ]),
+    modifiers: set.new(),
   )
 }
 
@@ -108,6 +143,10 @@ pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
     FlowEnter -> wrap_nav(model, navigation.flow_enter)
     FlowPrev -> wrap_nav(model, navigation.flow_prev)
     FlowNext -> wrap_nav(model, navigation.flow_next)
+    SetModifier(mod, True) ->
+      Some(Model(..model, modifiers: set.insert(model.modifiers, mod)))
+    SetModifier(mod, False) ->
+      Some(Model(..model, modifiers: set.delete(model.modifiers, mod)))
     Nop -> Some(model)
   }
 }

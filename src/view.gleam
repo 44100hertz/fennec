@@ -1,18 +1,29 @@
 import gleam/dict
 import gleam/list
-import gleam/option
+import gleam/option.{type Option, None, Some}
+import gleam/result
+import gleam/set
 
 import lustre/attribute
 import lustre/element
 import lustre/element/html
 import lustre/event
 
-import model.{type Model, Navigation, SelectPath}
+import model.{type Model, type Modifier, Navigation, SelectPath}
 import navigation as nav
 import operations.{type Operation} as op
 import syntax.{
   type Argument, type LispNode, Argument, ArgumentInvalid, Array, Call, Document,
   Expr, Func, Item, Table,
+}
+
+pub fn key_to_modifier(key) -> Option(Modifier) {
+  case key {
+    "Alt" -> Some(model.Alt)
+    "Shift" -> Some(model.Shift)
+    "Control" -> Some(model.Control)
+    _ -> None
+  }
 }
 
 pub fn operation_to_effect(operation: Operation) {
@@ -142,12 +153,32 @@ body {
           #("width", "100svw"),
           #("height", "100svh"),
         ]),
-        event.on_keydown(fn(key) {
+        event.on_keyup(fn(key) {
           key
-          |> dict.get(model.keybinds, _)
-          |> option.from_result
-          |> option.map(operation_to_effect)
+          |> key_to_modifier
+          |> option.map(model.SetModifier(_, False))
           |> option.unwrap(model.Nop)
+        }),
+        event.on_keydown(fn(key) {
+          case key_to_modifier(key) {
+            Some(mod) -> model.SetModifier(mod, True)
+            None -> {
+              let shift = set.contains(model.modifiers, model.Shift)
+              let control = set.contains(model.modifiers, model.Control)
+              let alt = set.contains(model.modifiers, model.Alt)
+
+              dict.get(model.keybinds, model.KeyMatch(key, shift, control, alt))
+              |> result.lazy_or(fn() {
+                dict.get(
+                  model.keybinds,
+                  model.KeyMatchAnyCase(key, control, alt),
+                )
+              })
+              |> option.from_result
+              |> option.map(operation_to_effect)
+              |> option.unwrap(model.Nop)
+            }
+          }
         }),
       ],
       [render_content(model.document, [], model)],
