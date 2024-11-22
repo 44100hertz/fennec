@@ -21,7 +21,7 @@ pub type SyntaxNode =
 
 pub type LispNodeKind {
   Document
-  Call(cdr: LispNode)
+  Call(car: LispNode)
   Func(name: Option(String), args: List(Argument))
   Array
   Table
