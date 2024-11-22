@@ -46,12 +46,16 @@ pub fn operation_to_effect(operation: Operation) {
 
     op.Copy -> model.Copy("1")
     op.Insert -> model.Insert("1")
-    op.InsertInto -> model.InsertInto("1")
+    op.InsertInto ->
+      model.Alternatives([
+        model.InsertInto("1"),
+        model.Multi([Navigation(nav.Jump(0)), model.Insert("1")]),
+      ])
     op.Append -> model.Multi([model.Append("1"), Navigation(nav.Move(1))])
     op.AppendInto ->
       model.Alternatives([
         model.Multi([
-          Navigation(nav.Enter),
+          model.Alternatives([Navigation(nav.Enter), model.Nop]),
           Navigation(nav.Last),
           model.Append("1"),
           Navigation(nav.Move(1)),

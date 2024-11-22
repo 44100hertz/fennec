@@ -60,9 +60,9 @@ pub fn name(op: Operation) -> String {
 
     Copy -> "Copy selection to register"
     Insert -> "Insert before selection"
-    InsertInto -> "Insert inside expression (at start)"
+    InsertInto -> "Insert inside expression (or start)"
     Append -> "Insert after selection"
-    AppendInto -> "Insert inside expression (at end)"
+    AppendInto -> "Append inside expression (or end)"
 
     // deletions
     Delete -> "Delete node and subtree"
