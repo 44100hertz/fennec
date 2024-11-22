@@ -136,7 +136,6 @@ pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
       })
     Insert(register) -> wrap_register_op(model, register, syntax.NodeInsert(_))
     Append(register) -> wrap_register_op(model, register, syntax.NodeAppend(_))
-    // TODO: fix delete path
     Delete -> wrap_op(model, syntax.NodeDelete)
     Replace(register) ->
       dict.get(model.registers, register)

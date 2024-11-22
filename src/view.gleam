@@ -56,7 +56,7 @@ pub fn operation_to_effect(operation: Operation) {
         model.Append("1"),
         Navigation(nav.Move(1)),
       ])
-    op.Delete -> model.Delete
+    op.Delete -> model.Multi([model.Delete, Navigation(nav.TruncatePath)])
     op.Raise ->
       model.Multi([model.Copy("0"), Navigation(nav.Leave), model.Replace("0")])
     // TODO: 

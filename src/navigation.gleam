@@ -7,6 +7,7 @@ import syntax.{type LispNode, Expr, get_node}
 pub type Navigation {
   Leave
   LeaveIfItem
+  TruncatePath
   EnterIfExpr
   Enter
   ForceEnter
@@ -33,6 +34,12 @@ pub fn try_navigation(
         _ -> None
       }
     LeaveIfItem, [] -> None
+    TruncatePath, [_, ..rest] ->
+      case get_node(root, path) {
+        Some(..) -> Some(path)
+        None -> try_navigation(root, rest, TruncatePath)
+      }
+    TruncatePath, [] -> Some(path)
     EnterIfExpr, _ ->
       case get_node(root, path) {
         Some(Expr(content: [_, ..], ..)) -> Some([0, ..path])
