@@ -46,8 +46,16 @@ pub fn operation_to_effect(operation: Operation) {
 
     op.Copy -> model.Copy("1")
     op.Insert -> model.Insert("1")
+    op.InsertInto ->
+      model.Multi([Navigation(nav.ForceEnter), model.Insert("1")])
     op.Append -> model.Multi([model.Append("1"), Navigation(nav.Move(1))])
-
+    op.AppendInto ->
+      model.Multi([
+        Navigation(nav.ForceEnter),
+        model.Alternatives([Navigation(nav.Last), model.Nop]),
+        model.Append("1"),
+        Navigation(nav.Move(1)),
+      ])
     op.Delete -> model.Delete
     op.Raise ->
       model.Multi([model.Copy("0"), Navigation(nav.Leave), model.Replace("0")])
@@ -65,7 +73,7 @@ pub fn operation_to_effect(operation: Operation) {
         Navigation(nav.Move(-1)),
         model.Copy("0"),
         model.Delete,
-        Navigation(nav.Enter),
+        Navigation(nav.ForceEnter),
         model.Insert("0"),
         Navigation(nav.Leave),
       ])
@@ -76,8 +84,8 @@ pub fn operation_to_effect(operation: Operation) {
         model.Copy("0"),
         model.Delete,
         Navigation(nav.Move(-1)),
-        Navigation(nav.Enter),
-        Navigation(nav.Last),
+        Navigation(nav.ForceEnter),
+        model.Alternatives([Navigation(nav.Last), model.Nop]),
         model.Append("0"),
         Navigation(nav.Leave),
       ])

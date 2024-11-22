@@ -16,7 +16,9 @@ pub type Operation {
 
   Copy
   Insert
+  InsertInto
   Append
+  AppendInto
 
   // deletions
   Delete
@@ -58,7 +60,9 @@ pub fn name(op: Operation) -> String {
 
     Copy -> "Copy selection to register"
     Insert -> "Insert before selection"
+    InsertInto -> "Insert inside expression (at start)"
     Append -> "Insert after selection"
+    AppendInto -> "Insert inside expression (at end)"
 
     // deletions
     Delete -> "Delete node and subtree"

@@ -9,6 +9,7 @@ pub type Navigation {
   LeaveIfItem
   EnterIfExpr
   Enter
+  ForceEnter
   Move(offset: Int)
   Jump(index: Int)
   Last
@@ -39,6 +40,7 @@ pub fn try_navigation(
         _ -> None
       }
     Enter, path -> get_node_then_path(root, [0, ..path])
+    ForceEnter, path -> Some([0, ..path])
     Move(offset), [head, ..path] ->
       get_node_then_path(root, [head + offset, ..path])
     Move(..), [] -> None
