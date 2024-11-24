@@ -7,9 +7,7 @@ import syntax.{type LispNode, Expr, get_node}
 pub type Navigation {
   Root
   Leave
-  LeaveIfItem
   Enter
-  EnterIfExpr
   FlowEnter
   FlowBottom
   Next
@@ -34,19 +32,6 @@ pub fn try_navigation(
     Root, _ -> Some([])
     Leave, [_, ..rest] -> Some(rest)
     Leave, [] -> None
-    LeaveIfItem, [_, ..rest] ->
-      case get_node(root, path) {
-        Some(Expr(..)) -> Some(path)
-        Some(..) -> Some(rest)
-        _ -> None
-      }
-    LeaveIfItem, [] -> None
-    EnterIfExpr, _ ->
-      case get_node(root, path) {
-        Some(Expr(content: [_, ..], ..)) -> Some([0, ..path])
-        Some(syntax.Item(..)) -> Some(path)
-        _ -> None
-      }
     Enter, path -> get_node_then_path(root, [0, ..path])
     FlowEnter, _ ->
       nearest_expression(root, path, 0)

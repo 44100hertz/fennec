@@ -71,7 +71,7 @@ pub fn operation_to_effect(operation: Operation) {
     op.Convolute -> Nop
     op.SlurpLeft ->
       Multi([
-        Navigation(navigation.LeaveIfItem),
+        IfItem(Navigation(navigation.Leave)),
         Navigation(navigation.Prev),
         Copy("0"),
         Delete,
@@ -80,7 +80,7 @@ pub fn operation_to_effect(operation: Operation) {
       ])
     op.SlurpRight ->
       Multi([
-        Navigation(navigation.LeaveIfItem),
+        IfItem(Navigation(navigation.Leave)),
         Navigation(navigation.Next),
         Copy("0"),
         Delete,
@@ -97,7 +97,7 @@ pub fn operation_to_effect(operation: Operation) {
       ])
     op.BarfLeft ->
       Multi([
-        Navigation(navigation.EnterIfExpr),
+        Alternatives([Navigation(navigation.Enter), Nop]),
         Navigation(navigation.First),
         Copy("0"),
         Delete,
@@ -107,7 +107,7 @@ pub fn operation_to_effect(operation: Operation) {
       ])
     op.BarfRight ->
       Multi([
-        Navigation(navigation.EnterIfExpr),
+        Alternatives([Navigation(navigation.Enter), Nop]),
         Navigation(navigation.Last),
         Copy("0"),
         Delete,
@@ -127,6 +127,7 @@ pub fn operation_to_effect(operation: Operation) {
 pub type Effect {
   Alternatives(List(Effect))
   Multi(List(Effect))
+  IfItem(Effect)
   Copy(register: String)
   Delete
   Replace(register: String)
@@ -245,6 +246,13 @@ pub fn try_update(model: Model, msg: Effect) -> Option(Model) {
       list.fold(messages, Some(model), fn(res, op) {
         res |> option.then(try_update(_, op))
       })
+    IfItem(op) -> {
+      let assert Some(node) = syntax.get_node(model.document, model.selection)
+      case node {
+        syntax.Item(..) -> try_update(model, op)
+        _ -> Some(model)
+      }
+    }
     Root -> Some(Model(..model, selection: []))
     Navigation(nav) ->
       wrap_nav(model, fn(root, path) {

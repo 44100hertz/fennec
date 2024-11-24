@@ -37,9 +37,7 @@ pub fn name(op: Operation) -> String {
       case nav {
         navigation.Root -> "Go to document root"
         navigation.Leave -> "Leave to parent node"
-        navigation.LeaveIfItem -> ""
         navigation.Enter -> "Go into child node (basic)"
-        navigation.EnterIfExpr -> ""
         navigation.FlowEnter -> "Flow into child node"
         navigation.FlowBottom -> "Flow into deepest node"
         navigation.Prev -> "Go to next sibling (basic)"
