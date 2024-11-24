@@ -1,6 +1,7 @@
 import gleam/dict.{type Dict}
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/set.{type Set}
 import navigation.{type Navigation}
 import operations.{type Operation} as op
@@ -18,6 +19,139 @@ pub type Model {
     keybinds: Dict(KeyMatch, Operation),
     modifiers: Set(Modifier),
   )
+}
+
+pub type Msg {
+  NodeClicked(path: Path)
+  KeyDown(name: String)
+  KeyUp(name: String)
+}
+
+pub fn key_to_modifier(key) -> Option(Modifier) {
+  case key {
+    "Alt" -> Some(Alt)
+    "Shift" -> Some(Shift)
+    "Control" -> Some(Control)
+    _ -> None
+  }
+}
+
+pub fn operation_to_effect(operation: Operation) {
+  case operation {
+    op.Root -> Root
+    op.Enter -> Navigation(navigation.Enter)
+    op.FlowEnter -> FlowEnter
+    // TODO: 
+    op.FlowBottom -> Nop
+    op.Leave -> Navigation(navigation.Leave)
+    op.Next -> Navigation(navigation.Move(1))
+    op.Prev -> Navigation(navigation.Move(-1))
+    op.FlowNext -> FlowNext
+    op.FlowPrev -> FlowPrev
+    op.First -> Navigation(navigation.Jump(0))
+    op.Last -> Navigation(navigation.Last)
+    // TODO:
+    op.FlowFirst -> Nop
+    op.FlowLast -> Nop
+
+    op.Copy -> Copy("1")
+    op.Insert -> Insert("1")
+    op.InsertInto ->
+      Alternatives([
+        InsertInto("1"),
+        Multi([Navigation(navigation.Jump(0)), Insert("1")]),
+      ])
+    op.Append -> Multi([Append("1"), Navigation(navigation.Move(1))])
+    op.AppendInto ->
+      Alternatives([
+        Multi([
+          Alternatives([Navigation(navigation.Enter), Nop]),
+          Navigation(navigation.Last),
+          Append("1"),
+          Navigation(navigation.Move(1)),
+        ]),
+        // It's empty!
+        InsertInto("1"),
+      ])
+    op.Delete -> Multi([Delete, Navigation(navigation.TruncatePath)])
+    op.Raise -> Multi([Copy("0"), Navigation(navigation.Leave), Replace("0")])
+    // TODO: 
+    op.Unwrap -> Nop
+    op.Duplicate -> Multi([Copy("0"), Insert("0")])
+    // TODO: 
+    op.Split -> Nop
+    op.JoinLeft -> Nop
+    op.JoinRight -> Nop
+    op.Convolute -> Nop
+    op.SlurpLeft ->
+      Multi([
+        Navigation(navigation.LeaveIfItem),
+        Navigation(navigation.Move(-1)),
+        Copy("0"),
+        Delete,
+        InsertInto("0"),
+        Navigation(navigation.Leave),
+      ])
+    op.SlurpRight ->
+      Multi([
+        Navigation(navigation.LeaveIfItem),
+        Navigation(navigation.Move(1)),
+        Copy("0"),
+        Delete,
+        Navigation(navigation.Move(-1)),
+        Alternatives([
+          Multi([
+            Navigation(navigation.Enter),
+            Navigation(navigation.Last),
+            Append("0"),
+          ]),
+          InsertInto("0"),
+        ]),
+        Navigation(navigation.Leave),
+      ])
+    op.BarfLeft ->
+      Multi([
+        Navigation(navigation.EnterIfExpr),
+        Navigation(navigation.Jump(0)),
+        Copy("0"),
+        Delete,
+        Navigation(navigation.Leave),
+        Insert("0"),
+        Navigation(navigation.Move(1)),
+      ])
+    op.BarfRight ->
+      Multi([
+        Navigation(navigation.EnterIfExpr),
+        Navigation(navigation.Last),
+        Copy("0"),
+        Delete,
+        Navigation(navigation.Leave),
+        Append("0"),
+      ])
+    op.DragPrev -> Multi([Copy("0"), Delete, FlowPrev, Insert("0")])
+    op.DragNext ->
+      Alternatives([
+        Multi([Copy("0"), Delete, FlowNext, Insert("0")]),
+        Multi([Copy("0"), Delete, Append("0"), Navigation(navigation.Move(1))]),
+      ])
+  }
+}
+
+pub type Effect {
+  Alternatives(List(Effect))
+  Multi(List(Effect))
+  Copy(register: String)
+  Delete
+  Replace(register: String)
+  Insert(register: String)
+  InsertInto(register: String)
+  Append(register: String)
+  Root
+  Navigation(Navigation)
+  FlowEnter
+  FlowNext
+  FlowPrev
+  Nop
 }
 
 pub type KeyMatch {
@@ -45,25 +179,6 @@ pub type Modifier {
   Shift
   Control
   Alt
-}
-
-pub type Msg {
-  SetModifier(Modifier, Bool)
-  Alternatives(List(Msg))
-  Multi(List(Msg))
-  SelectPath(Path)
-  Copy(register: String)
-  Delete
-  Replace(register: String)
-  Insert(register: String)
-  InsertInto(register: String)
-  Append(register: String)
-  Root
-  Navigation(Navigation)
-  FlowEnter
-  FlowNext
-  FlowPrev
-  Nop
 }
 
 pub fn init(_flags) {
@@ -109,10 +224,34 @@ pub fn init(_flags) {
 }
 
 pub fn update(model: Model, msg: Msg) -> Model {
-  try_update(model, msg) |> option.unwrap(model)
+  case msg {
+    KeyDown(key) ->
+      case key_to_modifier(key) {
+        Some(mod) -> Model(..model, modifiers: set.insert(model.modifiers, mod))
+        None -> {
+          let shift = set.contains(model.modifiers, Shift)
+          let control = set.contains(model.modifiers, Control)
+          let alt = set.contains(model.modifiers, Alt)
+
+          dict.get(model.keybinds, KeyMatch(key, shift, control, alt))
+          |> result.lazy_or(fn() {
+            dict.get(model.keybinds, KeyMatchAnyCase(key, control, alt))
+          })
+          |> option.from_result
+          |> option.then(fn(op) { try_update(model, operation_to_effect(op)) })
+          |> option.unwrap(model)
+        }
+      }
+    KeyUp(key) ->
+      case key_to_modifier(key) {
+        Some(mod) -> Model(..model, modifiers: set.delete(model.modifiers, mod))
+        None -> model
+      }
+    NodeClicked(selection) -> Model(..model, selection:)
+  }
 }
 
-pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
+pub fn try_update(model: Model, msg: Effect) -> Option(Model) {
   case msg {
     Alternatives(messages) ->
       list.fold(messages, None, fn(res, op) {
@@ -123,9 +262,6 @@ pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
         res |> option.then(try_update(_, op))
       })
     Root -> Some(Model(..model, selection: []))
-    SelectPath(selection) ->
-      syntax.get_node(model.document, selection)
-      |> option.then(fn(_) { Some(Model(..model, selection:)) })
     Navigation(nav) ->
       wrap_nav(model, fn(root, path) {
         navigation.try_navigation(root, path, nav)
@@ -151,10 +287,6 @@ pub fn try_update(model: Model, msg: Msg) -> Option(Model) {
     FlowEnter -> wrap_nav(model, navigation.flow_enter)
     FlowPrev -> wrap_nav(model, navigation.flow_prev)
     FlowNext -> wrap_nav(model, navigation.flow_next)
-    SetModifier(mod, True) ->
-      Some(Model(..model, modifiers: set.insert(model.modifiers, mod)))
-    SetModifier(mod, False) ->
-      Some(Model(..model, modifiers: set.delete(model.modifiers, mod)))
     Nop -> Some(model)
   }
 }
