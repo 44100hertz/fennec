@@ -38,42 +38,28 @@ pub fn key_to_modifier(key) -> Option(Modifier) {
 
 pub fn operation_to_effect(operation: Operation) {
   case operation {
-    op.Root -> Root
-    op.Enter -> Navigation(navigation.Enter)
-    op.FlowEnter -> FlowEnter
-    // TODO: 
-    op.FlowBottom -> Nop
-    op.Leave -> Navigation(navigation.Leave)
-    op.Next -> Navigation(navigation.Move(1))
-    op.Prev -> Navigation(navigation.Move(-1))
-    op.FlowNext -> FlowNext
-    op.FlowPrev -> FlowPrev
-    op.First -> Navigation(navigation.Jump(0))
-    op.Last -> Navigation(navigation.Last)
-    // TODO:
-    op.FlowFirst -> Nop
-    op.FlowLast -> Nop
+    op.Navigation(navigation) -> Navigation(navigation)
 
     op.Copy -> Copy("1")
     op.Insert -> Insert("1")
     op.InsertInto ->
       Alternatives([
         InsertInto("1"),
-        Multi([Navigation(navigation.Jump(0)), Insert("1")]),
+        Multi([Navigation(navigation.First), Insert("1")]),
       ])
-    op.Append -> Multi([Append("1"), Navigation(navigation.Move(1))])
+    op.Append -> Multi([Append("1"), Navigation(navigation.Next)])
     op.AppendInto ->
       Alternatives([
         Multi([
           Alternatives([Navigation(navigation.Enter), Nop]),
           Navigation(navigation.Last),
           Append("1"),
-          Navigation(navigation.Move(1)),
+          Navigation(navigation.Next),
         ]),
         // It's empty!
         InsertInto("1"),
       ])
-    op.Delete -> Multi([Delete, Navigation(navigation.TruncatePath)])
+    op.Delete -> Delete
     op.Raise -> Multi([Copy("0"), Navigation(navigation.Leave), Replace("0")])
     // TODO: 
     op.Unwrap -> Nop
@@ -86,7 +72,7 @@ pub fn operation_to_effect(operation: Operation) {
     op.SlurpLeft ->
       Multi([
         Navigation(navigation.LeaveIfItem),
-        Navigation(navigation.Move(-1)),
+        Navigation(navigation.Prev),
         Copy("0"),
         Delete,
         InsertInto("0"),
@@ -95,10 +81,10 @@ pub fn operation_to_effect(operation: Operation) {
     op.SlurpRight ->
       Multi([
         Navigation(navigation.LeaveIfItem),
-        Navigation(navigation.Move(1)),
+        Navigation(navigation.Next),
         Copy("0"),
         Delete,
-        Navigation(navigation.Move(-1)),
+        Navigation(navigation.Prev),
         Alternatives([
           Multi([
             Navigation(navigation.Enter),
@@ -112,12 +98,12 @@ pub fn operation_to_effect(operation: Operation) {
     op.BarfLeft ->
       Multi([
         Navigation(navigation.EnterIfExpr),
-        Navigation(navigation.Jump(0)),
+        Navigation(navigation.First),
         Copy("0"),
         Delete,
         Navigation(navigation.Leave),
         Insert("0"),
-        Navigation(navigation.Move(1)),
+        Navigation(navigation.Next),
       ])
     op.BarfRight ->
       Multi([
@@ -128,11 +114,12 @@ pub fn operation_to_effect(operation: Operation) {
         Navigation(navigation.Leave),
         Append("0"),
       ])
-    op.DragPrev -> Multi([Copy("0"), Delete, FlowPrev, Insert("0")])
+    op.DragPrev ->
+      Multi([Copy("0"), Delete, Navigation(navigation.FlowPrev), Insert("0")])
     op.DragNext ->
       Alternatives([
-        Multi([Copy("0"), Delete, FlowNext, Insert("0")]),
-        Multi([Copy("0"), Delete, Append("0"), Navigation(navigation.Move(1))]),
+        Multi([Copy("0"), Delete, Navigation(navigation.FlowNext), Insert("0")]),
+        Multi([Copy("0"), Delete, Append("0"), Navigation(navigation.Next)]),
       ])
   }
 }
@@ -148,9 +135,6 @@ pub type Effect {
   Append(register: String)
   Root
   Navigation(Navigation)
-  FlowEnter
-  FlowNext
-  FlowPrev
   Nop
 }
 
@@ -188,15 +172,15 @@ pub fn init(_flags) {
     selection: [],
     registers: dict.new(),
     keybinds: dict.from_list([
-      #(key("^"), op.Root),
-      #(key("0"), op.First),
-      #(key("$"), op.Last),
-      #(key("j"), op.FlowEnter),
-      #(key("k"), op.Leave),
-      #(key("h"), op.FlowPrev),
-      #(key("ArrowLeft"), op.FlowPrev),
-      #(key("l"), op.FlowNext),
-      #(key("ArrowRight"), op.FlowNext),
+      #(key("^"), op.Navigation(navigation.Root)),
+      #(key("0"), op.Navigation(navigation.First)),
+      #(key("$"), op.Navigation(navigation.Last)),
+      #(key("j"), op.Navigation(navigation.FlowEnter)),
+      #(key("k"), op.Navigation(navigation.Leave)),
+      #(key("h"), op.Navigation(navigation.FlowPrev)),
+      #(key("ArrowLeft"), op.Navigation(navigation.FlowPrev)),
+      #(key("l"), op.Navigation(navigation.FlowNext)),
+      #(key("ArrowRight"), op.Navigation(navigation.FlowNext)),
       #(key("H"), op.DragPrev),
       #(shift("ArrowLeft"), op.DragPrev),
       #(key("L"), op.DragNext),
@@ -279,14 +263,18 @@ pub fn try_update(model: Model, msg: Effect) -> Option(Model) {
         syntax.NodeInsert(_),
       )
     Append(register) -> wrap_register_op(model, register, syntax.NodeAppend(_))
-    Delete -> wrap_op(model, syntax.NodeDelete)
+    Delete -> {
+      let deleted = wrap_op(model, syntax.NodeDelete)
+      case syntax.get_node(model.document, model.selection), model.selection {
+        Some(..), _ -> deleted
+        None, [_, ..selection] -> Some(Model(..model, selection:))
+        None, [] -> None
+      }
+    }
     Replace(register) ->
       dict.get(model.registers, register)
       |> option.from_result
       |> option.then(fn(node) { wrap_op(model, syntax.NodeReplace(node)) })
-    FlowEnter -> wrap_nav(model, navigation.flow_enter)
-    FlowPrev -> wrap_nav(model, navigation.flow_prev)
-    FlowNext -> wrap_nav(model, navigation.flow_next)
     Nop -> Some(model)
   }
 }

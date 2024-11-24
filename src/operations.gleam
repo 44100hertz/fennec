@@ -1,18 +1,7 @@
+import navigation
+
 pub type Operation {
-  // navigation
-  Root
-  Enter
-  FlowEnter
-  FlowBottom
-  Leave
-  Next
-  Prev
-  FlowNext
-  FlowPrev
-  First
-  Last
-  FlowFirst
-  FlowLast
+  Navigation(nav: navigation.Navigation)
 
   Copy
   Insert
@@ -44,19 +33,24 @@ pub type Operation {
 
 pub fn name(op: Operation) -> String {
   case op {
-    Root -> "Go to document root"
-    Enter -> "Go into child node (basic)"
-    FlowEnter -> "Flow into child node"
-    FlowBottom -> "Flow into deepest node"
-    Leave -> "Leave to parent node"
-    Next -> "Go to next sibling (basic)"
-    Prev -> "Go to previous sibling (basic)"
-    FlowNext -> "Flow to next sibling or cousin/uncle"
-    FlowPrev -> "Flow to previous sibling or cousin/uncle"
-    First -> "Go to first sibling"
-    Last -> "Go to last sibling"
-    FlowFirst -> "Flow to first sibling or first cousin/uncle"
-    FlowLast -> "Flow to last sibling or last cousin/uncle"
+    Navigation(nav) ->
+      case nav {
+        navigation.Root -> "Go to document root"
+        navigation.Leave -> "Leave to parent node"
+        navigation.LeaveIfItem -> ""
+        navigation.Enter -> "Go into child node (basic)"
+        navigation.EnterIfExpr -> ""
+        navigation.FlowEnter -> "Flow into child node"
+        navigation.FlowBottom -> "Flow into deepest node"
+        navigation.Prev -> "Go to next sibling (basic)"
+        navigation.Next -> "Go to previous sibling (basic)"
+        navigation.FlowPrev -> "Flow to previous sibling or cousin/uncle"
+        navigation.FlowNext -> "Flow to next sibling or cousin/uncle"
+        navigation.First -> "Go to first sibling"
+        navigation.Last -> "Go to last sibling"
+        navigation.FlowFirst -> "Flow to first sibling or first cousin/uncle"
+        navigation.FlowLast -> "Flow to last sibling or last cousin/uncle"
+      }
 
     Copy -> "Copy selection to register"
     Insert -> "Insert before selection"

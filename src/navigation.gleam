@@ -5,14 +5,21 @@ import gleam/option.{type Option, None, Some}
 import syntax.{type LispNode, Expr, get_node}
 
 pub type Navigation {
+  Root
   Leave
   LeaveIfItem
-  TruncatePath
-  EnterIfExpr
   Enter
-  Move(offset: Int)
-  Jump(index: Int)
+  EnterIfExpr
+  FlowEnter
+  FlowBottom
+  Next
+  Prev
+  First
   Last
+  FlowPrev
+  FlowNext
+  FlowFirst
+  FlowLast
 }
 
 type Path =
@@ -24,6 +31,7 @@ pub fn try_navigation(
   nav: Navigation,
 ) -> Option(Path) {
   case nav, path {
+    Root, _ -> Some([])
     Leave, [_, ..rest] -> Some(rest)
     Leave, [] -> None
     LeaveIfItem, [_, ..rest] ->
@@ -33,12 +41,6 @@ pub fn try_navigation(
         _ -> None
       }
     LeaveIfItem, [] -> None
-    TruncatePath, [_, ..rest] ->
-      case get_node(root, path) {
-        Some(..) -> Some(path)
-        None -> try_navigation(root, rest, TruncatePath)
-      }
-    TruncatePath, [] -> Some(path)
     EnterIfExpr, _ ->
       case get_node(root, path) {
         Some(Expr(content: [_, ..], ..)) -> Some([0, ..path])
@@ -46,11 +48,33 @@ pub fn try_navigation(
         _ -> None
       }
     Enter, path -> get_node_then_path(root, [0, ..path])
-    Move(offset), [head, ..path] ->
-      get_node_then_path(root, [head + offset, ..path])
-    Move(..), [] -> None
-    Jump(index), [_, ..path] -> get_node_then_path(root, [index, ..path])
-    Jump(..), [] -> None
+    FlowEnter, _ ->
+      nearest_expression(root, path, 0)
+      |> option.map(fn(_) { [0, ..path] })
+    // TODO:
+    FlowBottom, _ -> None
+    Prev, [head, ..path] -> get_node_then_path(root, [head - 1, ..path])
+    Prev, [] -> None
+    Next, [head, ..path] -> get_node_then_path(root, [head + 1, ..path])
+    Next, [] -> None
+    FlowNext, _ ->
+      try_navigation_list_iter(
+        root,
+        path,
+        SiblingFlowStep(0, 0, list.length(path), False),
+        sibling_flow_step,
+      )
+    FlowPrev, _ ->
+      try_navigation_list_iter(
+        root,
+        path,
+        SiblingFlowStep(0, 0, list.length(path), True),
+        sibling_flow_step,
+      )
+    // TODO:
+    FlowFirst, _ -> None
+    First, [_, ..path] -> get_node_then_path(root, [0, ..path])
+    First, [] -> None
     Last, [_, ..parent_path] ->
       case get_node(root, parent_path) {
         Some(Expr(_, [_, ..] as nodes)) -> {
@@ -59,6 +83,8 @@ pub fn try_navigation(
         _ -> None
       }
     Last, [] -> None
+    // TODO:
+    FlowLast, _ -> None
   }
 }
 
@@ -87,24 +113,6 @@ fn try_navigation_list(
   })
 }
 
-pub fn flow_prev(root: LispNode, path: Path) -> Option(Path) {
-  try_navigation_list_iter(
-    root,
-    path,
-    SiblingFlowStep(0, 0, list.length(path), True),
-    sibling_flow_step,
-  )
-}
-
-pub fn flow_next(root: LispNode, path: Path) -> Option(Path) {
-  try_navigation_list_iter(
-    root,
-    path,
-    SiblingFlowStep(0, 0, list.length(path), False),
-    sibling_flow_step,
-  )
-}
-
 type SiblingFlowStep {
   SiblingFlowStep(depth: Int, depth_right: Int, max_depth: Int, is_prev: Bool)
 }
@@ -120,8 +128,8 @@ fn sibling_flow_step(step) -> Option(#(List(Navigation), SiblingFlowStep)) {
   let SiblingFlowStep(depth, depth_right, max_depth, is_prev) = step
   use <- bool.guard(depth >= max_depth, None)
   let #(move, reenter) = case is_prev {
-    True -> #(Move(-1), [Enter, Last])
-    False -> #(Move(1), [Enter])
+    True -> #(Prev, [Enter, Last])
+    False -> #(Next, [Enter])
   }
   let nav =
     list.flatten([
@@ -134,15 +142,6 @@ fn sibling_flow_step(step) -> Option(#(List(Navigation), SiblingFlowStep)) {
     False -> #(depth + 1, depth + 1)
   }
   Some(#(nav, SiblingFlowStep(depth, depth_right, max_depth, is_prev)))
-}
-
-// Enter the nearest possible enterable node
-pub fn flow_enter(root: LispNode, path: Path) -> Option(Path) {
-  use path <- option.then(nearest_expression(root, path, 0))
-  case get_node(root, path) {
-    Some(Expr(_, [_, ..])) -> Some([0, ..path])
-    _ -> None
-  }
 }
 
 fn nearest_expression(root: LispNode, path: Path, tries: Int) -> Option(Path) {
